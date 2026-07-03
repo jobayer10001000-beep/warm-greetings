@@ -4,16 +4,16 @@ import { createFileRoute } from "@tanstack/react-router";
 // Bump `version` here whenever you ship a new .exe / feature that needs a rebuild.
 // The Electron app polls this endpoint and shows an "Update Available" banner.
 const MANIFEST = {
-  version: "1.1.1",
+  version: "1.0.7",
   released: "2026-07-03",
-  downloadUrl: "https://tdijnzdeofeylvqscjdv.supabase.co/storage/v1/object/public/releases/MYRAA-Setup-latest.exe",
+  downloadUrl: "https://tmpfiles.org/dl/wrwPjRI1Fjef/myraa-setup-1.0.7.exe",
   portableUrl: "https://tdijnzdeofeylvqscjdv.supabase.co/storage/v1/object/public/releases/MYRAA-win32-x64-latest.zip",
   notes: [
-    "50+ notun powerful command hardcoded (system, files, design, dev, chain modes)",
-    "Shutdown ekhon instant (0 second, force close)",
-    "In-app update system — notun version pele auto-notify",
-    "YouTube song play exact name match kore — fakiraa slowed reverb er moto query ar vange na",
-    "Discord/Photoshop/Premiere er jonno window-ready tracker",
+    "Local command brain — backend bhul korleo stop/open/convert age app nije bujhe ney",
+    "YouTube stop/pause/bondho command ekhon video play kore na, running media pause kore",
+    "File name bole open korle Desktop/Downloads/Documents/Pictures/Videos/Music theke khuje open kore",
+    "Basic file convert support — image/text/media common formats",
+    "Direct single professional installer build",
   ],
 };
 

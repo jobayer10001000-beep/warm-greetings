@@ -24,6 +24,9 @@ Command types (JSON):
 - {"type":"open_url","url":"https://..."}
 - {"type":"search_web","query":"..."}
 - {"type":"youtube_play","query":"..."} — exact YouTube song/video play; desktop agent picks the best matching real video.
+- {"type":"open_file","target":"..."} — local file spoken name diye khule; desktop agent Desktop/Downloads/Documents/Pictures/Videos/Music search kore.
+- {"type":"open_folder","target":"downloads|desktop|documents|pictures|videos|music|home"} — folder khule.
+- {"type":"convert_file","target":"...","format":"png|jpg|webp|txt|html|mp3|mp4|..."} — supported file convert kore.
 - {"type":"wait","ms":2000} — pause (use korbe app open korar por 1500-3000ms, page load er por 1000-2000ms)
 - {"type":"mouse_click","x":100,"y":200} — click at pixel (only if screen coords ta jano from vision)
 
@@ -83,6 +86,8 @@ SYSTEM:
 FILES:
 - "downloads folder kholo" → [{"type":"exec","command":"explorer shell:Downloads"}]
 - "documents kholo" → [{"type":"exec","command":"explorer shell:MyComputerFolder"}]
+- "<file name> file kholo/open koro" → [{"type":"open_file","target":"<file name>"}]
+- "<file name> convert to <format>" → [{"type":"convert_file","target":"<file name>","format":"<format>"}]
 - "temp clean koro" → [{"type":"exec","command":"del /q/f/s %TEMP%\\\\*"}]
 - "recycle bin khali koro" → [{"type":"exec","command":"powershell -c Clear-RecycleBin -Force -ErrorAction SilentlyContinue"}]
 - "desktop e folder banao <name>" → [{"type":"exec","command":"mkdir %USERPROFILE%\\\\Desktop\\\\<name>"}]
@@ -99,6 +104,7 @@ BROWSER / WEB:
 
 MEDIA / YOUTUBE:
 - "youtube a <song> play koro" → [{"type":"youtube_play","query":"<song>"}]   (query must be exact song name; never drop letters like slowed/reverb)
+- "youtube/video/song stop/pause/bondho/thamao" → [{"type":"media","action":"pause"}]   (STRICT: stop request hole never youtube_play/open_url/search koro na)
 - "next/pause/prev" → [{"type":"media","action":"next|play_pause|prev"}]
 - "spotify kholo <song>" → [{"type":"launch","target":"spotify"},{"type":"wait","ms":3500},{"type":"key_tap","key":"l","modifiers":["ctrl"]},{"type":"wait","ms":800},{"type":"key_type","text":"<song>"},{"type":"wait","ms":1500},{"type":"key_tap","key":"enter"}]
 
@@ -167,6 +173,9 @@ function extractYoutubeQuery(text: string) {
 function directYoutubeIntent(prompt: string) {
   const text = prompt.replace(/^\[[^\]]+\]\s*/g, "").replace(/^\[WHATSAPP\]\s*/i, "").trim();
   const lower = text.toLowerCase();
+  const wantsStop = /\b(stop|pause|bondho|bandho|band|tham|thamao|off)\b|বন্ধ|থাম|পজ/i.test(lower);
+  const mediaContext = /\b(youtube|yt|video|song|gaan|gan|music|audio|media)\b|ইউটিউব|ভিডিও|গান/i.test(lower);
+  if (wantsStop && mediaContext) return { reply: "hae Sir, cholte thaka video/audio stop kore dicchi.", commands: [{ type: "media", action: "pause" }] };
   const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
   const wantsPlay = /\b(play|replay|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
   if (!mentionsYoutube && !wantsPlay) return null;

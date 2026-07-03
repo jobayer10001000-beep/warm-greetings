@@ -63,7 +63,7 @@
       "artifactName": "MYRAA-Setup-${version}.${ext}",
       "uninstallDisplayName": "MYRAA — Neural Desktop Companion"
     },
-    "compression": "store"
+    "compression": "maximum"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.1",
@@ -147,7 +147,7 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16"
   },
-  "version": "1.0.5",
+  "version": "1.0.7",
   "author": "MYRAA",
   "description": "MYRAA Neural Desktop Companion"
 }
