@@ -13,8 +13,8 @@
     "format": "prettier --write .",
     "electron:dev": "electron electron/main.cjs",
     "electron:build": "ELECTRON_BUILD=1 vite build && electron-packager . MYRAA --overwrite --out=electron-release --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/.lovable\"",
-    "dist": "ELECTRON_BUILD=1 vite build && electron-builder --win --publish never",
-    "dist:portable": "ELECTRON_BUILD=1 vite build && electron-builder --win portable --publish never"
+    "dist": "electron-builder --win --publish never",
+    "dist:portable": "electron-builder --win portable --publish never"
   },
   "build": {
     "appId": "com.myraa.desktop",
@@ -27,7 +27,6 @@
     },
     "files": [
       "electron/**/*",
-      ".output/**/*",
       "package.json",
       "!**/*.map",
       "!**/node_modules/*/{README.md,readme.md,CHANGELOG.md,*.d.ts}",
