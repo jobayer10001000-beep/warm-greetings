@@ -22,7 +22,7 @@
     "copyright": "Copyright © 2026 MYRAA",
     "artifactName": "MYRAA-Setup-${version}.${ext}",
     "directories": {
-      "output": "dist-installer",
+      "output": "/tmp/dist-installer",
       "buildResources": "electron"
     },
     "files": [
@@ -41,16 +41,9 @@
       "**/node_modules/@nut-tree-fork/**"
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
+      "target": "nsis",
       "icon": "electron/icon.ico",
-      "publisherName": "MYRAA",
-      "requestedExecutionLevel": "asInvoker",
-      "verifyUpdateCodeSignature": false
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -69,7 +62,8 @@
       "include": "electron/installer.nsh",
       "artifactName": "MYRAA-Setup-${version}.${ext}",
       "uninstallDisplayName": "MYRAA — Neural Desktop Companion"
-    }
+    },
+    "compression": "store"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.1",

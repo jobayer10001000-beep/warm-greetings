@@ -221,7 +221,7 @@ async function systemAction(action) {
       case "logout":     return sh("shutdown /l");
       case "cancel":     return sh("shutdown /a");
       case "screenshot": {
-        const out = path.join(app.getPath("pictures"), `myraa-${Date.now()}.png`);
+        const out = path.join(app.getPath("desktop"), `myraa-${Date.now()}.png`);
         return ps(`Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bmp.Save('${out.replace(/\\/g,"\\\\")}'); Write-Output '${out.replace(/\\/g,"\\\\")}'`);
       }
     }
