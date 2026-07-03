@@ -9,6 +9,15 @@ contextBridge.exposeInMainWorld("myraa", {
   screenshot: () => ipcRenderer.invoke("myraa:screenshot"),
   hasKey:     () => ipcRenderer.invoke("myraa:hasKey"),
   setKey:     (key) => ipcRenderer.invoke("myraa:setKey", key),
+  update: {
+    check:    () => ipcRenderer.invoke("myraa:update:check"),
+    download: (url) => ipcRenderer.invoke("myraa:update:download", url),
+    onAvailable: (cb) => {
+      const fn = (_e, info) => cb(info);
+      ipcRenderer.on("myraa:update:available", fn);
+      return () => ipcRenderer.removeListener("myraa:update:available", fn);
+    },
+  },
   wa: {
     state:  () => ipcRenderer.invoke("myraa:wa:state"),
     start:  () => ipcRenderer.invoke("myraa:wa:start"),
