@@ -613,6 +613,29 @@ function directIntent(payload) {
     };
   }
 
+  // Notepad new tab / new window (Windows 11 Notepad supports Ctrl+T for tab, Ctrl+N for window)
+  if (/\bnotepad\b|নোটপ্যাড/i.test(lower)) {
+    const wantsTab = /\b(new tab|tab|notun tab|arekta tab)\b|নতুন ট্যাব/i.test(lower);
+    const wantsWindow = /\b(new window|notun window|arekta window|new notepad|arekta notepad)\b|নতুন উইন্ডো/i.test(lower);
+    const wantsOpen = /\b(open|kholo|khol|khule|start|chalao|chala)\b|খুলো|চালাও/i.test(lower);
+    if (wantsTab) {
+      return {
+        reply: "hae Sir, Notepad e notun tab khule dicchi.",
+        commands: [
+          { type: "launch", target: "notepad" },
+          { type: "wait_window", match: "Notepad", timeoutMs: 8000 },
+          { type: "key_tap", key: "t", modifiers: ["LeftControl"] },
+        ],
+      };
+    }
+    if (wantsWindow || wantsOpen) {
+      return {
+        reply: "hae Sir, Notepad khule dicchi.",
+        commands: [{ type: "launch", target: "notepad" }],
+      };
+    }
+  }
+
   const folderIntent = parseFolderIntent(text);
   if (folderIntent) {
     return {
