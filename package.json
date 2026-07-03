@@ -12,7 +12,62 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "electron:dev": "electron electron/main.cjs",
-    "electron:build": "ELECTRON_BUILD=1 vite build && electron-packager . MYRAA --overwrite --out=electron-release --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/.lovable\""
+    "electron:build": "ELECTRON_BUILD=1 vite build && electron-packager . MYRAA --overwrite --out=electron-release --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/.lovable\"",
+    "dist": "ELECTRON_BUILD=1 vite build && electron-builder --win --publish never",
+    "dist:portable": "ELECTRON_BUILD=1 vite build && electron-builder --win portable --publish never"
+  },
+  "build": {
+    "appId": "com.myraa.desktop",
+    "productName": "MYRAA",
+    "copyright": "Copyright © 2026 MYRAA",
+    "artifactName": "MYRAA-Setup-${version}.${ext}",
+    "directories": {
+      "output": "dist-installer",
+      "buildResources": "electron"
+    },
+    "files": [
+      "electron/**/*",
+      ".output/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/node_modules/*/{README.md,readme.md,CHANGELOG.md,*.d.ts}",
+      "!**/node_modules/**/test/**",
+      "!**/node_modules/**/tests/**",
+      "!**/node_modules/**/*.{md,markdown}"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/whatsapp-web.js/**",
+      "**/node_modules/puppeteer*/**",
+      "**/node_modules/@nut-tree-fork/**"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "electron/icon.ico",
+      "publisherName": "MYRAA",
+      "requestedExecutionLevel": "asInvoker",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "MYRAA",
+      "menuCategory": "MYRAA",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "electron/icon.ico",
+      "uninstallerIcon": "electron/icon.ico",
+      "installerHeaderIcon": "electron/icon.ico",
+      "include": "electron/installer.nsh",
+      "artifactName": "MYRAA-Setup-${version}.${ext}",
+      "uninstallDisplayName": "MYRAA — Neural Desktop Companion"
+    }
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.1",
