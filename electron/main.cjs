@@ -258,6 +258,69 @@ async function mediaAction(action) {
   return { ok: false, out: `media ${a} unsupported` };
 }
 
+async function openYoutubePlay(query) {
+  const q = String(query || "").trim();
+  if (!q) {
+    await shell.openExternal("https://www.youtube.com");
+    return { ok: true, out: "youtube" };
+  }
+  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  try {
+    const res = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 MYRAA Desktop Assistant",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    const html = await res.text();
+    const seen = new Set();
+    const ids = [...html.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)]
+      .map((m) => m[1])
+      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)));
+    if (ids[0]) {
+      const watch = `https://www.youtube.com/watch?v=${ids[0]}&autoplay=1`;
+      await shell.openExternal(watch);
+      return { ok: true, out: `playing ${q}` };
+    }
+  } catch (e) {
+    console.log("[myraa] youtube play fallback:", e.message);
+  }
+  await shell.openExternal(searchUrl);
+  return { ok: true, out: `youtube search ${q}` };
+}
+
+function directIntent(payload) {
+  const raw = typeof payload === "string" ? payload : String(payload?.prompt || "");
+  const text = raw.replace(/^\[[^\]]+\]\s*/g, "").replace(/^\[WHATSAPP\]\s*/i, "").trim();
+  const lower = text.toLowerCase();
+  const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
+  if (!mentionsYoutube) return null;
+
+  const wantsPlay = /\b(play|chalao|chala|chalaw|bajao|baja|gaan|song)\b|চাল|বাজ/i.test(lower);
+  let query = text
+    .replace(/hey\s+myraa|hi\s+myraa|myraa|mayra|miraa/gi, " ")
+    .replace(/youtube|yt|ইউটিউব/gi, " ")
+    .replace(/open|khol|kholo|khule|search|sarch|khoj|khujo|play|this song|song|gaan|ta|e|a|te|kore|dao|daw|please/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!query && /youtube\s+(?:e\s+)?(.+)/i.test(text)) query = RegExp.$1.trim();
+  if (!query) {
+    return {
+      reply: "hae Sir, YouTube khule dicchi.",
+      commands: [{ type: "open_url", url: "https://www.youtube.com" }],
+    };
+  }
+  return {
+    reply: wantsPlay
+      ? `hae Sir, YouTube e ${query} play kore dicchi.`
+      : `hae Sir, YouTube e ${query} search kore dicchi.`,
+    commands: wantsPlay
+      ? [{ type: "youtube_play", query }]
+      : [{ type: "open_url", url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}` }],
+  };
+}
+
 const APP_ALIASES_WIN = {
   chrome: "chrome", firefox: "firefox", edge: "msedge",
   spotify: "spotify:", code: "code", vscode: "code",
@@ -320,6 +383,7 @@ async function runCommand(cmd) {
       case "launch":     return launchApp(cmd.target || cmd.command);
       case "system":     return systemAction(cmd.action);
       case "media":      return mediaAction(cmd.action);
+      case "youtube_play": return openYoutubePlay(cmd.query || cmd.text || cmd.command || cmd.url || "");
       case "type":
       case "key_type":   return typeText(cmd.text || "");
       case "key_tap":    return keyTap(cmd.key, cmd.modifiers || []);
@@ -375,6 +439,9 @@ ipcMain.handle("myraa:info", () => ({
 
 const DEFAULT_BACKEND = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-ai";
 async function callAI(payload) {
+  const direct = directIntent(payload);
+  if (direct) return direct;
+
   const cfg = readConfig();
   const url = cfg.backendUrl && /^https?:\/\//.test(cfg.backendUrl) ? cfg.backendUrl : DEFAULT_BACKEND;
   const body = typeof payload === "string"

@@ -51,7 +51,9 @@
     background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);transition:.15s}
   .chip:hover{border-color:var(--border-strong)}
   .chip.icon{width:36px;padding:0;justify-content:center}
+  .chip.wa{color:#86efac;border-color:rgba(34,197,94,.35)}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--primary);box-shadow:0 0 10px var(--primary)}
+  .dot.wa-idle{background:var(--muted);box-shadow:none}.dot.wa-busy{background:var(--amber);box-shadow:0 0 10px var(--amber)}.dot.wa-ready{background:#22c55e;box-shadow:0 0 10px #22c55e}.dot.wa-error{background:var(--danger);box-shadow:0 0 10px var(--danger)}
 
   main{flex:1;display:grid;grid-template-columns:1fr 400px;gap:24px;padding:0 28px 130px;min-height:0;position:relative;z-index:10}
   @media (max-width:1000px){main{grid-template-columns:1fr}}
@@ -127,6 +129,29 @@
   .log div{color:var(--muted);padding:3px 6px;border-left:2px solid var(--border)}
   .log div.ok{border-color:#22c55e}
   .log div.err{border-color:var(--danger);color:#fca5a5}
+
+  /* WhatsApp control */
+  .wa-panel{position:fixed;right:24px;top:78px;z-index:40;width:400px;max-height:calc(100vh - 110px);overflow:auto;border-radius:18px;padding:18px;
+    background:var(--panel);backdrop-filter:blur(16px);border:1px solid rgba(34,197,94,.38);box-shadow:0 0 35px rgba(34,197,94,.12);animation:up .25s}
+  .wa-panel.hidden{display:none}
+  .wa-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .wa-head h3{font-family:'Orbitron';font-size:11px;letter-spacing:.25em;color:#86efac}
+  .wa-head button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px}
+  .wa-status{display:flex;align-items:center;justify-content:space-between;font-family:'JetBrains Mono';font-size:11px;color:var(--muted);margin-bottom:12px}
+  .wa-card{border:1px solid rgba(34,197,94,.22);border-radius:12px;padding:12px;background:rgba(34,197,94,.06);font-size:13px;line-height:1.45;color:var(--text)}
+  .wa-card b{color:#bbf7d0}.wa-card code{color:var(--primary);font-family:'JetBrains Mono';font-size:12px}
+  .wa-steps{margin:10px 0 0 18px;color:var(--muted)}
+  .wa-steps li{margin:4px 0}
+  .wa-qr{text-align:center;margin:14px 0}.wa-qr.hidden{display:none}
+  .wa-qr-box{display:inline-block;background:#fff;border-radius:14px;padding:12px;box-shadow:0 0 25px rgba(255,255,255,.12)}
+  .wa-qr img{width:250px;height:250px;display:block}
+  .wa-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .wa-actions button{height:38px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,.7);color:var(--text);font-family:'Orbitron';font-size:10px;letter-spacing:.18em;cursor:pointer;transition:.15s}
+  .wa-actions button:hover{border-color:rgba(34,197,94,.55)}
+  .wa-actions button.primary{grid-column:1/-1;background:#22c55e;border-color:#22c55e;color:#02110a;font-weight:900}
+  .wa-actions button.danger:hover{border-color:rgba(244,63,94,.7);color:#fca5a5}
+  .wa-last{margin-top:10px;font-family:'JetBrains Mono';font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wa-fab{position:fixed;right:24px;bottom:102px;z-index:29;border-radius:999px;border:1px solid rgba(34,197,94,.42);background:rgba(20,83,45,.45);color:#bbf7d0;padding:10px 15px;display:flex;align-items:center;gap:8px;font-family:'Orbitron';font-size:10px;letter-spacing:.18em;cursor:pointer;box-shadow:0 0 20px rgba(34,197,94,.14)}
 </style>
 </head>
 <body>
@@ -144,6 +169,11 @@
       <button class="chip" id="langBtn" title="Language">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>
         <span id="langLabel">BANGLA</span>
+      </button>
+      <button class="chip wa" id="waBtn" title="Connect WhatsApp">
+        <span class="dot wa-idle" id="waDot"></span>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-12.3 7.4L3 20l1.2-5.4A8.5 8.5 0 1121 11.5z"/><path d="M8.5 8.5c.4 3 3 5.5 6 6l1.2-1.2a1 1 0 011.1-.2c.9.4 1.8.6 2.7.7"/></svg>
+        <span id="waLabel">WHATSAPP</span>
       </button>
       <button class="chip icon" id="ttsBtn" title="Voice output">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM19 12a4 4 0 00-2-3.5"/></svg>
@@ -214,6 +244,39 @@
     </div>
     <div class="log" id="log"></div>
   </div>
+
+  <button class="wa-fab" id="waFab"><span class="dot wa-idle" id="waFabDot"></span>CONNECT WHATSAPP</button>
+
+  <div class="wa-panel hidden" id="waPanel">
+    <div class="wa-head">
+      <h3>WHATSAPP CONTROL</h3>
+      <button id="closeWa">✕</button>
+    </div>
+    <div class="wa-status">
+      <span id="waStatus">● IDLE</span>
+      <span id="waNumber"></span>
+    </div>
+    <div class="wa-card" id="waHint">
+      <b>Phone theke PC control korte:</b>
+      <ol class="wa-steps">
+        <li><b>CONNECT WHATSAPP</b> click koro.</li>
+        <li>Phone e WhatsApp → <b>Settings → Linked Devices → Link a Device</b>.</li>
+        <li>Ei QR scan koro.</li>
+        <li>Nijer WhatsApp self-chat e text/voice command pathao.</li>
+      </ol>
+      <br>Example: <code>hey myraa youtube e fakiraa search kore play koro</code>
+    </div>
+    <div class="wa-qr hidden" id="waQrWrap">
+      <div class="wa-qr-box"><img id="waQr" alt="WhatsApp QR code" /></div>
+    </div>
+    <div class="wa-last" id="waLast"></div>
+    <div class="wa-actions">
+      <button class="primary" id="waStart">CONNECT WHATSAPP</button>
+      <button id="waTest">SEND TEST</button>
+      <button id="waStop">STOP</button>
+      <button class="danger" id="waLogout">LOGOUT</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -222,6 +285,10 @@
   const langBtn = $('langBtn'), langLabel = $('langLabel');
   const ttsBtn = $('ttsBtn'), micBtn = $('micBtn');
   const consoleBtn = $('consoleBtn'), consolePanel = $('console'), closeConsole = $('closeConsole');
+  const waBtn = $('waBtn'), waFab = $('waFab'), waPanel = $('waPanel'), closeWa = $('closeWa');
+  const waDot = $('waDot'), waFabDot = $('waFabDot'), waLabel = $('waLabel'), waStatus = $('waStatus'), waNumber = $('waNumber');
+  const waHint = $('waHint'), waQrWrap = $('waQrWrap'), waQr = $('waQr'), waLast = $('waLast');
+  const waStart = $('waStart'), waStop = $('waStop'), waLogout = $('waLogout'), waTest = $('waTest');
 
   let lang = localStorage.getItem('myraa.lang') || 'BANGLA';
   let ttsOn = localStorage.getItem('myraa.tts') !== '0';
@@ -241,6 +308,69 @@
   });
   consoleBtn.addEventListener('click', () => consolePanel.classList.toggle('hidden'));
   closeConsole.addEventListener('click', () => consolePanel.classList.add('hidden'));
+  waBtn.addEventListener('click', () => waPanel.classList.toggle('hidden'));
+  waFab.addEventListener('click', () => waPanel.classList.remove('hidden'));
+  closeWa.addEventListener('click', () => waPanel.classList.add('hidden'));
+
+  let waBusy = false;
+  function waDotClass(status) {
+    if (status === 'ready') return 'dot wa-ready';
+    if (status === 'error') return 'dot wa-error';
+    if (status === 'starting' || status === 'qr' || status === 'authenticated') return 'dot wa-busy';
+    return 'dot wa-idle';
+  }
+  function setWaButtons(s) {
+    const status = s?.status || 'idle';
+    waStart.style.display = ['idle','disconnected','error'].includes(status) ? '' : 'none';
+    waStop.style.display = ['starting','qr','authenticated','ready','disconnected','error'].includes(status) ? '' : 'none';
+    waTest.style.display = status === 'ready' ? '' : 'none';
+    waLogout.style.display = (status === 'ready' || s?.ownNumber) ? '' : 'none';
+    [waStart, waStop, waLogout, waTest].forEach(b => b.disabled = waBusy);
+  }
+  function renderWa(s) {
+    const status = s?.status || 'idle';
+    const cls = waDotClass(status);
+    waDot.className = cls; waFabDot.className = cls;
+    waLabel.textContent = status === 'ready' ? 'WA READY' : status === 'qr' ? 'SCAN QR' : 'WHATSAPP';
+    waFab.style.display = status === 'ready' ? 'none' : 'flex';
+    waStatus.textContent = '● ' + status.toUpperCase();
+    waStatus.style.color = status === 'ready' ? '#86efac' : status === 'error' ? 'var(--danger)' : status === 'qr' ? 'var(--amber)' : 'var(--muted)';
+    waNumber.textContent = s?.ownDisplay || '';
+    waQrWrap.classList.toggle('hidden', !(status === 'qr' && s?.qrDataUrl));
+    if (status === 'qr' && s?.qrDataUrl) waQr.src = s.qrDataUrl;
+    if (!window.myraa?.wa) {
+      waHint.innerHTML = '<b>Desktop bridge missing.</b><br>MYRAA.exe diye app open koro, browser preview theke WhatsApp connect hobe na.';
+    } else if (status === 'ready') {
+      waHint.innerHTML = '<b>✓ WhatsApp connected!</b><br>Ekhon WhatsApp e nijer self-chat e text ba voice note pathao. MYRAA PC te kaj execute kore reply dibe.<br><br>Try: <code>lock pc</code>, <code>youtube e fakiraa play koro</code>, <code>volume baraw</code>';
+    } else if (status === 'starting') {
+      waHint.innerHTML = '<b>Starting WhatsApp browser…</b><br>Prothom bar 30-60s lagte pare. QR ashle phone diye scan koro.';
+    } else if (status === 'qr') {
+      waHint.innerHTML = '<b>QR ready.</b><ol class="wa-steps"><li>Phone e WhatsApp kholo.</li><li>Settings → Linked Devices → Link a Device.</li><li>Nicher QR scan koro.</li></ol>';
+    } else if (status === 'authenticated') {
+      waHint.innerHTML = '<b>Authenticated.</b><br>WhatsApp ready hocche — ekটু wait koro.';
+    } else if (status === 'error') {
+      waHint.innerHTML = '<b>WhatsApp error:</b><br>' + (s?.error || 'Unknown error') + '<br><br>STOP/LOGOUT diye abar CONNECT koro.';
+    } else {
+      waHint.innerHTML = '<b>Phone theke PC control korte:</b><ol class="wa-steps"><li><b>CONNECT WHATSAPP</b> click koro.</li><li>Phone e WhatsApp → <b>Settings → Linked Devices → Link a Device</b>.</li><li>Ei QR scan koro.</li><li>Nijer WhatsApp self-chat e text/voice command pathao.</li></ol><br>Example: <code>hey myraa youtube e fakiraa search kore play koro</code>';
+    }
+    waLast.textContent = s?.lastMessage ? ('Last ' + (s.lastMessage.dir === 'in' ? '→ ' : '← ') + s.lastMessage.text) : '';
+    setWaButtons(s);
+  }
+  async function waCall(label, fn) {
+    if (!window.myraa?.wa || waBusy) return;
+    waBusy = true; setWaButtons({ status: 'starting' }); addLog('WhatsApp: ' + label);
+    try { const s = await fn(); if (s && s.status) renderWa(s); addLog('WhatsApp ✓ ' + label, 'ok'); }
+    catch(e) { addLog('WhatsApp ✗ ' + e.message, 'err'); renderWa({ status:'error', error:e.message }); }
+    finally { waBusy = false; if (window.myraa?.wa) window.myraa.wa.state().then(renderWa).catch(()=>{}); }
+  }
+  waStart.addEventListener('click', () => { waPanel.classList.remove('hidden'); waCall('connect', () => window.myraa.wa.start()); });
+  waStop.addEventListener('click', () => waCall('stop', () => window.myraa.wa.stop()));
+  waLogout.addEventListener('click', () => { if (confirm('WhatsApp session logout kore abar QR scan korte hobe. Continue?')) waCall('logout', () => window.myraa.wa.logout()); });
+  waTest.addEventListener('click', () => waCall('test', () => window.myraa.wa.test()));
+  if (window.myraa?.wa) {
+    window.myraa.wa.onState(renderWa);
+    window.myraa.wa.state().then(renderWa).catch(() => renderWa({ status:'error', error:'state failed' }));
+  } else renderWa({ status:'idle' });
 
   let currentAudio = null;
   async function speak(text) {
