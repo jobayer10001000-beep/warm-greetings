@@ -8,6 +8,7 @@ const fs = require("fs");
 const { exec } = require("child_process");
 const os = require("os");
 const http = require("http");
+const wa = require("./whatsapp.cjs");
 
 // Single-instance lock so relaunches focus existing window
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
@@ -168,6 +169,20 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startPhoneBridge();
+  // Auto-start WhatsApp bridge if user previously enabled it
+  const cfg = readConfig();
+  if (cfg.waAutoStart) {
+    wa.start({
+      userDataDir: app.getPath("userData"),
+      onCommand: async ({ prompt }) => {
+        const result = await callAI({ prompt: `[WHATSAPP] ${prompt}` });
+        if (result?.error) return { error: result.error };
+        for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
+        return result;
+      },
+    }).catch((e) => console.log("[myraa-wa] autostart err", e.message));
+  }
+  wa.onChange((snap) => { try { mainWin?.webContents.send("myraa:wa:state", snap); } catch {} });
   // If launched with --hidden (auto-start on boot), hide window
   if (process.argv.includes("--hidden")) mainWin?.hide();
   app.on("activate", () => {
@@ -381,3 +396,27 @@ ipcMain.handle("myraa:setKey", (_e, url) => {
 });
 ipcMain.handle("myraa:ai", (_e, payload) => callAI(payload));
 ipcMain.handle("myraa:bridge", () => ({ url: phoneBridgeUrl(), token: getBridgeToken() }));
+
+// ─── WhatsApp bridge IPC ─────────────────────────────────────────────────────
+ipcMain.handle("myraa:wa:state", () => wa.getState());
+ipcMain.handle("myraa:wa:start", async () => {
+  const cfg = readConfig(); cfg.waAutoStart = true; writeConfig(cfg);
+  return wa.start({
+    userDataDir: app.getPath("userData"),
+    onCommand: async ({ prompt }) => {
+      const result = await callAI({ prompt: `[WHATSAPP] ${prompt}` });
+      if (result?.error) return { error: result.error };
+      for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
+      return result;
+    },
+  });
+});
+ipcMain.handle("myraa:wa:stop", async () => {
+  const cfg = readConfig(); cfg.waAutoStart = false; writeConfig(cfg);
+  return wa.stop();
+});
+ipcMain.handle("myraa:wa:logout", async () => {
+  const cfg = readConfig(); cfg.waAutoStart = false; writeConfig(cfg);
+  return wa.logout();
+});
+ipcMain.handle("myraa:wa:test", async () => wa.sendToSelf("🤖 MYRAA online — self-chat theke command dite paro."));

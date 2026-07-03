@@ -22,6 +22,25 @@ type MyraaBridge = {
   isDesktop: true;
   execute: (cmd: AgentCommand) => Promise<{ ok: boolean; out?: string }>;
   info: () => Promise<{ platform: string; user: string; nut: boolean; version: string }>;
+  wa?: {
+    state: () => Promise<WaState>;
+    start: () => Promise<WaState>;
+    stop: () => Promise<{ ok: boolean }>;
+    logout: () => Promise<{ ok: boolean }>;
+    test: () => Promise<{ ok: boolean; out?: string }>;
+    onState: (cb: (s: WaState) => void) => () => void;
+  };
+};
+
+export type WaState = {
+  status: "idle" | "starting" | "qr" | "authenticated" | "ready" | "disconnected" | "error";
+  qrDataUrl: string | null;
+  ownNumber: string | null;
+  ownDisplay: string | null;
+  error: string | null;
+  lastMessage: { text: string; at: number; dir: "in" | "out" } | null;
+  startedAt: number | null;
+  available: boolean;
 };
 
 declare global {

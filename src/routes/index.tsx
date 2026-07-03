@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Mic, MicOff, Send, Globe, Eye, Terminal, Loader2,
-  X, Power, Lock, Camera, Volume2, Cpu,
+  X, Power, Lock, Camera, Volume2, Cpu, MessageCircle,
 } from "lucide-react";
-import { useAgent, type AgentCommand } from "@/lib/use-agent";
+import { useAgent, type AgentCommand, type WaState } from "@/lib/use-agent";
 import { interpretCommand } from "@/lib/myraa-ai.functions";
 import earthImg from "@/assets/earth.png";
 
@@ -31,6 +31,16 @@ function Dashboard() {
   const [showConsole, setShowConsole] = useState(false);
   const [muted, setMuted] = useState(true);
   const [lang, setLang] = useState<"BANGLA" | "ENGLISH">("BANGLA");
+  const [showWa, setShowWa] = useState(false);
+  const [wa, setWa] = useState<WaState | null>(null);
+
+  useEffect(() => {
+    const bridge = typeof window !== "undefined" ? window.myraa?.wa : undefined;
+    if (!bridge) return;
+    bridge.state().then(setWa).catch(() => {});
+    const off = bridge.onState((s) => setWa(s));
+    return () => { off?.(); };
+  }, []);
 
   const convoRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -95,6 +105,9 @@ function Dashboard() {
           >
             <Globe className="w-3.5 h-3.5 text-primary" /> {lang}
           </button>
+          <IconChip onClick={() => setShowWa((s) => !s)} title="WhatsApp Control">
+            <MessageCircle className={`w-4 h-4 ${wa?.status === "ready" ? "text-green-400" : ""}`} />
+          </IconChip>
           <IconChip onClick={() => setShowConsole((s) => !s)} title="Console">
             <Terminal className="w-4 h-4" />
           </IconChip>
@@ -211,6 +224,134 @@ function Dashboard() {
             {log.map((l, i) => <div key={i} className="text-muted-foreground">{l}</div>)}
           </div>
         </div>
+      )}
+
+      {showWa && <WhatsAppPanel wa={wa} isDesktop={isDesktop} onClose={() => setShowWa(false)} />}
+    </div>
+  );
+}
+
+function WhatsAppPanel({ wa, isDesktop, onClose }: { wa: WaState | null; isDesktop: boolean; onClose: () => void }) {
+  const bridge = typeof window !== "undefined" ? window.myraa?.wa : undefined;
+  const [busy, setBusy] = useState<string | null>(null);
+  const wrap = async (label: string, fn: () => Promise<unknown>) => {
+    setBusy(label);
+    try { await fn(); } finally { setBusy(null); }
+  };
+
+  const statusColor = wa?.status === "ready" ? "text-green-400"
+    : wa?.status === "qr" || wa?.status === "authenticated" || wa?.status === "starting" ? "text-amber-400"
+    : wa?.status === "error" ? "text-destructive" : "text-muted-foreground";
+
+  return (
+    <div className="fixed right-6 top-24 z-40 w-[380px] glass rounded-2xl p-5 float-up border-primary/30">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-primary" />
+          <span className="font-display text-xs tracking-widest text-primary">WHATSAPP CONTROL</span>
+        </div>
+        <button onClick={onClose}><X className="w-4 h-4" /></button>
+      </div>
+
+      {!isDesktop && (
+        <div className="text-xs text-muted-foreground bg-amber-400/10 border border-amber-400/30 rounded-lg p-3 mb-3">
+          WhatsApp control sudhu desktop MYRAA app-e kaj kore. <code className="text-primary">npm run electron:dev</code> diye chalao.
+        </div>
+      )}
+
+      {isDesktop && (
+        <>
+          <div className="flex items-center justify-between text-xs mb-3 font-mono">
+            <span className={statusColor}>● {wa?.status?.toUpperCase() ?? "IDLE"}</span>
+            {wa?.ownDisplay && <span className="text-muted-foreground">{wa.ownDisplay}</span>}
+          </div>
+
+          {wa?.status === "qr" && wa.qrDataUrl && (
+            <div className="text-center">
+              <div className="bg-white p-3 rounded-xl inline-block">
+                <img src={wa.qrDataUrl} alt="Scan QR" width={240} height={240} />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                Phone e WhatsApp kholo → <b>Settings → Linked Devices → Link a Device</b> → ei QR scan koro.
+              </p>
+            </div>
+          )}
+
+          {wa?.status === "starting" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" /> Browser chalu hocche… (prothom bar 30-60s)
+            </div>
+          )}
+
+          {wa?.status === "ready" && (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground leading-relaxed bg-green-500/5 border border-green-500/20 rounded-lg p-3">
+                ✓ Connected! Ekhon tomar WhatsApp e nijeke message koro (self-chat) — jei message dibe MYRAA seta execute korbe ar reply pathabe.
+                <br /><br />
+                Try: <code className="text-primary">youtube kholo</code>, <code className="text-primary">lock kor</code>, <code className="text-primary">volume baraw</code>
+              </div>
+              {wa.lastMessage && (
+                <div className="text-[11px] font-mono text-muted-foreground">
+                  Last: {wa.lastMessage.dir === "in" ? "→" : "←"} {wa.lastMessage.text.slice(0, 60)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {wa?.status === "error" && (
+            <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+              {wa.error || "Unknown error"}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 mt-4">
+            {(wa?.status === "idle" || wa?.status === "disconnected" || wa?.status === "error") && (
+              <button
+                onClick={() => wrap("start", () => bridge!.start())}
+                disabled={busy !== null}
+                className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-display tracking-wider hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {busy === "start" ? "STARTING…" : "CONNECT WHATSAPP"}
+              </button>
+            )}
+            {wa?.status === "ready" && (
+              <>
+                <button
+                  onClick={() => wrap("test", () => bridge!.test())}
+                  disabled={busy !== null}
+                  className="flex-1 h-9 rounded-lg glass text-xs font-display tracking-wider hover:border-primary/50 transition"
+                >
+                  SEND TEST
+                </button>
+                <button
+                  onClick={() => wrap("stop", () => bridge!.stop())}
+                  disabled={busy !== null}
+                  className="flex-1 h-9 rounded-lg glass text-xs font-display tracking-wider hover:border-destructive/50 hover:text-destructive transition"
+                >
+                  STOP
+                </button>
+              </>
+            )}
+            {(wa?.status === "qr" || wa?.status === "authenticated" || wa?.status === "starting") && (
+              <button
+                onClick={() => wrap("stop", () => bridge!.stop())}
+                disabled={busy !== null}
+                className="flex-1 h-9 rounded-lg glass text-xs font-display tracking-wider hover:border-destructive/50 hover:text-destructive transition"
+              >
+                CANCEL
+              </button>
+            )}
+            {(wa?.ownNumber || wa?.status === "ready") && (
+              <button
+                onClick={() => wrap("logout", () => bridge!.logout())}
+                disabled={busy !== null}
+                className="h-9 px-3 rounded-lg text-xs font-display tracking-wider text-destructive/80 hover:text-destructive transition"
+              >
+                LOGOUT
+              </button>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
