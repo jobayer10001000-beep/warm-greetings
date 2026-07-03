@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MYRAA — Neural Desktop Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#020611;
+    --panel:rgba(15,23,42,.55);
+    --border:rgba(56,189,248,.25);
+    --border-strong:rgba(56,189,248,.5);
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --primary:#22d3ee;
+    --accent:#a855f7;
+    --amber:#fbbf24;
+    --danger:#f43f5e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;font-family:'Rajdhani',system-ui,sans-serif;color:var(--text);background:var(--bg)}
+  body{
+    background:
+      radial-gradient(ellipse at 20% 10%,rgba(34,211,238,.18),transparent 55%),
+      radial-gradient(ellipse at 80% 90%,rgba(168,85,247,.18),transparent 55%),
+      var(--bg);
+  }
+  .stars{position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(1px 1px at 15% 20%,#fff,transparent),radial-gradient(1px 1px at 40% 70%,#fff,transparent),radial-gradient(1px 1px at 65% 25%,#fff,transparent),radial-gradient(2px 2px at 82% 82%,#fff,transparent),radial-gradient(1px 1px at 10% 85%,#fff,transparent),radial-gradient(1px 1px at 90% 45%,#fff,transparent),radial-gradient(1px 1px at 55% 55%,#fff,transparent);}
+  .display{font-family:'Orbitron',sans-serif;letter-spacing:.15em}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .glow-text{text-shadow:0 0 12px rgba(34,211,238,.6),0 0 24px rgba(34,211,238,.3)}
+  .glow-cyan{box-shadow:0 0 20px rgba(34,211,238,.25),inset 0 0 20px rgba(34,211,238,.05)}
+  .glass{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border)}
+
+  /* Layout */
+  .app{position:relative;height:100vh;display:flex;flex-direction:column}
+  header{display:flex;justify-content:space-between;align-items:center;padding:18px 28px;position:relative;z-index:20}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-badge{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(135deg,rgba(34,211,238,.3),rgba(168,85,247,.3));
+    border:1px solid rgba(34,211,238,.4);}
+  .brand-badge span{font-family:'Orbitron';font-size:22px;font-weight:900;color:var(--primary);text-shadow:0 0 12px var(--primary)}
+  .brand h1{font-family:'Orbitron';font-size:22px;font-weight:900;color:var(--primary);text-shadow:0 0 12px rgba(34,211,238,.6);line-height:1}
+  .brand p{font-family:'Orbitron';font-size:9px;letter-spacing:.25em;color:var(--muted);margin-top:4px}
+  .chips{display:flex;gap:8px;align-items:center}
+  .chip{height:36px;padding:0 14px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;
+    font-family:'Orbitron';font-size:10px;letter-spacing:.2em;color:var(--text);cursor:pointer;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);transition:.15s}
+  .chip:hover{border-color:var(--border-strong)}
+  .chip.icon{width:36px;padding:0;justify-content:center}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--primary);box-shadow:0 0 10px var(--primary)}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 400px;gap:24px;padding:0 28px 130px;min-height:0;position:relative;z-index:10}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+
+  /* Earth */
+  .earth-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+  .earth-wrap{position:relative;width:min(520px,80%);aspect-ratio:1}
+  .earth-glow{position:absolute;inset:0;border-radius:50%;background:rgba(34,211,238,.2);filter:blur(60px);animation:pulse 4s ease-in-out infinite}
+  .earth-img{position:relative;width:100%;height:100%;border-radius:50%;
+    animation:earthspin 60s linear infinite;
+    filter:drop-shadow(0 0 60px rgba(34,211,238,.4));user-select:none;-webkit-user-drag:none}
+  .orbit{position:absolute;inset:-40px;border-radius:50%;border:1px solid rgba(34,211,238,.15);animation:orbit 40s linear infinite}
+  .orbit.two{inset:-80px;border-color:rgba(34,211,238,.08)}
+  .ellipses{position:absolute;inset:0;pointer-events:none;animation:orbit 40s linear infinite}
+  @keyframes earthspin{to{transform:rotate(360deg)}}
+  @keyframes orbit{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+  /* Conversation */
+  aside.conv{border-radius:20px;padding:20px;display:flex;flex-direction:column;min-height:0;height:calc(100vh - 240px)}
+  .conv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .conv-head h2{font-family:'Orbitron';font-size:12px;letter-spacing:.25em;color:var(--primary);text-shadow:0 0 8px rgba(34,211,238,.5)}
+  .conv-head span{font-family:'JetBrains Mono';font-size:10px;color:var(--muted)}
+  .msgs{flex:1;overflow-y:auto;padding-right:4px;display:flex;flex-direction:column;gap:12px}
+  .msgs::-webkit-scrollbar{width:6px}
+  .msgs::-webkit-scrollbar-thumb{background:rgba(34,211,238,.3);border-radius:3px}
+  .empty{color:var(--muted);font-style:italic;font-size:14px}
+  .bubble{max-width:88%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45;animation:up .3s ease}
+  .bubble.user{align-self:flex-end;background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3)}
+  .bubble.ai{align-self:flex-start;background:rgba(30,41,59,.5);border:1px solid var(--border)}
+  .bubble.ai .tag{font-family:'Orbitron';font-size:9px;letter-spacing:.25em;color:var(--primary);margin-bottom:4px}
+  .bubble.sys{align-self:center;font-family:'JetBrains Mono';font-size:11px;color:var(--danger)}
+  .thinking{color:var(--primary);font-family:'Orbitron';font-size:10px;letter-spacing:.25em;display:flex;align-items:center;gap:8px}
+  .thinking .d{width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse 1s ease-in-out infinite}
+  @keyframes up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* Left quick actions */
+  .quick{position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:8px}
+  .quick button{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;cursor:pointer;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);color:var(--primary);transition:.15s;position:relative}
+  .quick button:hover{border-color:var(--border-strong);transform:translateX(2px)}
+  .quick button.danger{color:var(--danger)}
+  .quick button.danger:hover{border-color:rgba(244,63,94,.6)}
+  .quick button svg{width:18px;height:18px}
+  .quick button::after{content:attr(data-label);position:absolute;left:56px;padding:4px 8px;border-radius:6px;background:#111827;font-family:'Orbitron';font-size:9px;letter-spacing:.2em;opacity:0;pointer-events:none;transition:.15s;white-space:nowrap}
+  .quick button:hover::after{opacity:1}
+
+  /* Composer */
+  .composer{position:fixed;bottom:0;left:0;right:0;padding:16px 24px 24px;z-index:30;
+    background:linear-gradient(to top,var(--bg) 40%,rgba(2,6,17,.9),transparent)}
+  .composer form{max-width:760px;margin:0 auto;border-radius:999px;padding:8px;display:flex;align-items:center;gap:8px;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);box-shadow:0 0 30px rgba(34,211,238,.15)}
+  .composer input{flex:1;background:transparent;border:none;outline:none;padding:0 14px;font-size:15px;color:var(--text);font-family:'Rajdhani'}
+  .composer input::placeholder{color:rgba(148,163,184,.7)}
+  .btn-round{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;cursor:pointer;border:none;transition:.15s}
+  .btn-mic{background:rgba(30,41,59,.6);color:var(--muted)}
+  .btn-mic.on{background:rgba(244,63,94,.2);color:var(--danger);box-shadow:0 0 15px rgba(244,63,94,.4);animation:mic 1.4s ease-in-out infinite}
+  .btn-send{background:var(--primary);color:#020611}
+  .btn-send:hover{transform:scale(1.06)}
+  .btn-send:disabled{opacity:.3;cursor:not-allowed}
+  .btn-round svg{width:18px;height:18px}
+  @keyframes mic{0%,100%{box-shadow:0 0 15px rgba(244,63,94,.4)}50%{box-shadow:0 0 25px rgba(244,63,94,.7)}}
+  .foot{text-align:center;font-family:'Orbitron';font-size:9px;letter-spacing:.3em;color:rgba(148,163,184,.6);margin-top:12px}
+
+  /* Console */
+  .console{position:fixed;right:24px;bottom:120px;z-index:30;width:380px;max-height:320px;border-radius:16px;padding:14px;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--border);animation:up .25s}
+  .console.hidden{display:none}
+  .console-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .console-head h3{font-family:'Orbitron';font-size:10px;letter-spacing:.25em;color:var(--primary)}
+  .console-head button{background:none;border:none;color:var(--muted);cursor:pointer}
+  .log{overflow-y:auto;max-height:260px;font-family:'JetBrains Mono';font-size:11px;display:flex;flex-direction:column-reverse;gap:2px}
+  .log div{color:var(--muted);padding:3px 6px;border-left:2px solid var(--border)}
+  .log div.ok{border-color:#22c55e}
+  .log div.err{border-color:var(--danger);color:#fca5a5}
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brand-badge glow-cyan"><span>M</span></div>
+      <div>
+        <h1>MYRAA</h1>
+        <p>NEURAL COMPANION · v0.4</p>
+      </div>
+    </div>
+    <div class="chips">
+      <button class="chip" id="langBtn" title="Language">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>
+        <span id="langLabel">BANGLA</span>
+      </button>
+      <button class="chip icon" id="ttsBtn" title="Voice output">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM19 12a4 4 0 00-2-3.5"/></svg>
+      </button>
+      <button class="chip icon" id="consoleBtn" title="Console">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      </button>
+      <div class="chip"><span class="dot"></span><span id="status">DESKTOP · WIN32</span></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="earth-stage">
+      <div class="earth-wrap">
+        <div class="orbit two"></div>
+        <div class="orbit"></div>
+        <div class="earth-glow"></div>
+        <img class="earth-img" src="earth.png" alt="Earth" draggable="false" />
+      </div>
+    </section>
+
+    <aside class="conv glass">
+      <div class="conv-head">
+        <h2>CONVERSATION</h2>
+        <span id="msgCount">0 msg</span>
+      </div>
+      <div class="msgs" id="msgs">
+        <div class="empty">Say hi to Myraa — bolun "youtube khol", "volume baraw", "lock kor"…</div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="quick">
+    <button data-label="LOCK" data-cmd='{"type":"system","action":"lock"}'>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    </button>
+    <button data-label="SHOT" data-cmd='{"type":"system","action":"screenshot"}'>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </button>
+    <button data-label="VOL+" data-cmd='{"type":"media","action":"vol_up"}'>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/></svg>
+    </button>
+    <button data-label="NEXT" data-cmd='{"type":"media","action":"next"}'>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+    </button>
+    <button data-label="OFF" class="danger" data-danger="Shutdown PC in 10s?" data-cmd='{"type":"system","action":"shutdown"}'>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+    </button>
+  </div>
+
+  <div class="composer">
+    <form id="composer">
+      <button type="button" class="btn-round btn-mic" id="micBtn" title="Voice input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+      </button>
+      <input id="prompt" placeholder="Talk to Myraa…" autofocus />
+      <button type="submit" class="btn-round btn-send" id="sendBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </form>
+    <div class="foot" id="footNote">DESKTOP MODE · DIRECT OS CONTROL · VOICE READY</div>
+  </div>
+
+  <div class="console hidden" id="console">
+    <div class="console-head">
+      <h3>AGENT CONSOLE</h3>
+      <button id="closeConsole">✕</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const msgs = $('msgs'), log = $('log'), input = $('prompt'), sendBtn = $('sendBtn');
+  const langBtn = $('langBtn'), langLabel = $('langLabel');
+  const ttsBtn = $('ttsBtn'), micBtn = $('micBtn');
+  const consoleBtn = $('consoleBtn'), consolePanel = $('console'), closeConsole = $('closeConsole');
+
+  let lang = localStorage.getItem('myraa.lang') || 'BANGLA';
+  let ttsOn = localStorage.getItem('myraa.tts') !== '0';
+  langLabel.textContent = lang;
+  ttsBtn.style.color = ttsOn ? 'var(--primary)' : 'var(--muted)';
+
+  langBtn.addEventListener('click', () => {
+    lang = lang === 'BANGLA' ? 'ENGLISH' : 'BANGLA';
+    localStorage.setItem('myraa.lang', lang);
+    langLabel.textContent = lang;
+  });
+  ttsBtn.addEventListener('click', () => {
+    ttsOn = !ttsOn;
+    localStorage.setItem('myraa.tts', ttsOn ? '1' : '0');
+    ttsBtn.style.color = ttsOn ? 'var(--primary)' : 'var(--muted)';
+    if (!ttsOn) speechSynthesis.cancel();
+  });
+  consoleBtn.addEventListener('click', () => consolePanel.classList.toggle('hidden'));
+  closeConsole.addEventListener('click', () => consolePanel.classList.add('hidden'));
+
+  let currentAudio = null;
+  async function speak(text) {
+    if (!ttsOn || !text) return;
+    try {
+      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      // Prefer ElevenLabs (native Bangla female voice) via desktop bridge
+      if (window.myraa?.tts) {
+        const r = await window.myraa.tts(text);
+        if (r?.audio) {
+          currentAudio = new Audio(r.audio);
+          currentAudio.play().catch(() => {});
+          return;
+        }
+      }
+      // Fallback: browser TTS
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'bn-BD'; u.rate = 1; u.pitch = 1;
+        speechSynthesis.speak(u);
+      }
+    } catch {}
+  }
+
+
+  let empty = msgs.querySelector('.empty');
+  function addMsg(role, text) {
+    if (empty) { empty.remove(); empty = null; }
+    const d = document.createElement('div');
+    d.className = 'bubble ' + role;
+    if (role === 'ai') {
+      d.innerHTML = '<div class="tag">MYRAA</div><div></div>';
+      d.lastChild.textContent = text;
+    } else {
+      d.textContent = text;
+    }
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+    $('msgCount').textContent = msgs.querySelectorAll('.bubble').length + ' msg';
+    if (role === 'ai') speak(text);
+  }
+  function addLog(text, cls='') {
+    const d = document.createElement('div');
+    d.className = cls;
+    d.textContent = new Date().toLocaleTimeString() + ' • ' + text;
+    log.insertBefore(d, log.firstChild);
+  }
+
+  async function runCmd(cmd) {
+    if (!window.myraa) { addLog('not desktop', 'err'); return; }
+    const label = cmd.type + (cmd.target?' '+cmd.target:'') + (cmd.action?' '+cmd.action:'') + (cmd.url?' '+cmd.url:'');
+    try {
+      const res = await window.myraa.execute(cmd);
+      addLog((res.ok?'✓ ':'✗ ') + label + (res.out?' — '+String(res.out).slice(0,80):''), res.ok?'ok':'err');
+    } catch(e){ addLog('✗ ' + label + ' — ' + e.message, 'err'); }
+  }
+
+  document.querySelectorAll('.quick button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const danger = btn.dataset.danger;
+      if (danger && !confirm(danger)) return;
+      runCmd(JSON.parse(btn.dataset.cmd));
+    });
+  });
+
+  let thinking = false;
+  input.addEventListener('input', () => { sendBtn.disabled = !input.value.trim() || thinking; });
+
+  async function submit() {
+    const text = input.value.trim();
+    if (!text || thinking) return;
+    input.value = '';
+    sendBtn.disabled = true;
+    addMsg('user', text);
+    thinking = true;
+
+    const t = document.createElement('div');
+    t.className = 'thinking'; t.id='thinking';
+    t.innerHTML = '<span class="d"></span>MYRAA IS THINKING…';
+    msgs.appendChild(t); msgs.scrollTop = msgs.scrollHeight;
+
+    if (!window.myraa) {
+      addMsg('sys', 'desktop mode only'); thinking=false; t.remove(); return;
+    }
+    try {
+      // Vision only when user asks — huge speedup for chat/commands
+      let image;
+      const needsVision = /screen|dekho|dekhte|dekhcho|dekhecho|amar screen|ki dekh|ei window|ei page|ei ta ki|error|ki lekha|ki likh/i.test(text);
+      if (needsVision) {
+        try {
+          const shot = await window.myraa.screenshot?.();
+          if (shot?.ok && shot.image) image = shot.image;
+        } catch {}
+      }
+      const res = await window.myraa.ai({ prompt: text, image });
+      t.remove();
+      if (res.error) addMsg('sys', 'error: ' + res.error);
+      else {
+        addMsg('ai', res.reply || 'hae Sir.');
+        for (const cmd of (res.commands || [])) await runCmd(cmd);
+      }
+    } catch(e){ t.remove(); addMsg('sys', 'error: ' + e.message); }
+
+    thinking = false;
+    sendBtn.disabled = !input.value.trim();
+    input.focus();
+  }
+
+  $('composer').addEventListener('submit', (e) => { e.preventDefault(); submit(); });
+
+  // ─── Voice input (Web Speech Recognition) ─────────────────────────
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recog = null, listening = false;
+  if (SR) {
+    recog = new SR();
+    recog.continuous = false;
+    recog.interimResults = true;
+    recog.onresult = (e) => {
+      let txt = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
+      input.value = txt;
+      sendBtn.disabled = !txt.trim();
+      if (e.results[e.results.length-1].isFinal) {
+        stopListen();
+        setTimeout(submit, 200);
+      }
+    };
+    recog.onerror = (e) => { addLog('mic: ' + e.error, 'err'); stopListen(); };
+    recog.onend = () => stopListen();
+  } else {
+    micBtn.style.opacity = .4; micBtn.title = 'Voice not supported';
+  }
+  function startListen() {
+    if (!recog || listening) return;
+    recog.lang = lang === 'BANGLA' ? 'bn-BD' : 'en-US';
+    try { recog.start(); listening = true; micBtn.classList.add('on'); } catch(e){ addLog('mic start: '+e.message,'err'); }
+  }
+  function stopListen() {
+    if (!recog) return;
+    listening = false; micBtn.classList.remove('on');
+    try { recog.stop(); } catch {}
+  }
+  micBtn.addEventListener('click', () => listening ? stopListen() : startListen());
+
+  // Init
+  if (window.myraa?.info) window.myraa.info().then(i => {
+    $('status').textContent = 'DESKTOP · ' + i.platform.toUpperCase();
+    addLog('Booted • ' + i.platform + ' • ' + i.user, 'ok');
+  });
+  else { $('status').textContent = 'BROWSER MODE'; $('footNote').textContent = 'PREVIEW MODE'; }
+</script>
+</body>
+</html>
