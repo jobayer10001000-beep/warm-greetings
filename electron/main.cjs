@@ -954,7 +954,34 @@ ipcMain.handle("myraa:tts", async (_e, payload) => {
 ipcMain.handle("myraa:info", () => ({
   platform: plat, release: os.release(), hostname: os.hostname(),
   user: os.userInfo().username, nut: !!nut, version: app.getVersion(),
-  bridge: phoneBridgeUrl(),
+  bridge: phoneBridgeUrl(), ownerName: getOwnerName(),
+}));
+
+// Owner name IPC — read/update at runtime (also mirrors to registry on Windows)
+ipcMain.handle("myraa:owner:get", () => getOwnerName());
+ipcMain.handle("myraa:owner:set", (_e, name) => {
+  const clean = String(name || "").trim() || "Sir";
+  const cfg = readConfig(); cfg.ownerName = clean; writeConfig(cfg);
+  if (process.platform === "win32") {
+    exec(`reg add "HKCU\\Software\\MYRAA" /v OwnerName /t REG_SZ /d "${clean.replace(/"/g, '')}" /f`, () => {});
+  }
+  return { ok: true, ownerName: clean };
+});
+
+// Windows startup toggle — mirrors the installer choice, editable later.
+const RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+ipcMain.handle("myraa:startup:get", () => new Promise((resolve) => {
+  if (process.platform !== "win32") return resolve({ enabled: false, supported: false });
+  exec(`reg query "${RUN_KEY}" /v MYRAA`, (err) => resolve({ enabled: !err, supported: true }));
+}));
+ipcMain.handle("myraa:startup:set", (_e, enabled) => new Promise((resolve) => {
+  if (process.platform !== "win32") return resolve({ ok: false, supported: false });
+  if (enabled) {
+    const target = `"${process.execPath}" --hidden`;
+    exec(`reg add "${RUN_KEY}" /v MYRAA /t REG_SZ /d "${target.replace(/"/g, '\\"')}" /f`, (err) => resolve({ ok: !err, enabled: true }));
+  } else {
+    exec(`reg delete "${RUN_KEY}" /v MYRAA /f`, () => resolve({ ok: true, enabled: false }));
+  }
 }));
 
 const DEFAULT_BACKEND = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-ai";
