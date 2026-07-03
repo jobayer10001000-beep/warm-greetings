@@ -940,7 +940,12 @@ async function callAI(payload) {
   const url = cfg.backendUrl && /^https?:\/\//.test(cfg.backendUrl) ? cfg.backendUrl : DEFAULT_BACKEND;
   const body = typeof payload === "string"
     ? { prompt: payload, platform: plat }
-    : { prompt: String(payload?.prompt || ""), platform: plat, image: payload?.image || undefined };
+    : {
+        prompt: String(payload?.prompt || ""),
+        platform: plat,
+        image: payload?.image || undefined,
+        language: payload?.language || undefined,
+      };
   try {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!res.ok) { const txt = await res.text().catch(() => ""); return { error: `Backend ${res.status}: ${txt.slice(0, 200)}` }; }
