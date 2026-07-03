@@ -17,11 +17,18 @@ Command types:
 - {"type":"open_url","url":"https://..."}
 - {"type":"search_web","query":"..."}
 - {"type":"youtube_play","query":"..."} — play exact requested YouTube song/video.
+- {"type":"open_file","target":"..."} — open local file by spoken name.
+- {"type":"open_folder","target":"downloads|desktop|documents|pictures|videos|music|home"} — open local folder.
+- {"type":"convert_file","target":"...","format":"png|jpg|webp|txt|html|mp3|mp4|..."} — convert local file when supported.
 
 Rules:
 - "gmail open koro" → open_url https://mail.google.com
 - "youtube e <song name> play koro" / song play requests → youtube_play with query exactly equal to the song name. Example: "fakiraa slowed reverb song play koro" → {"type":"youtube_play","query":"fakiraa slowed reverb"}
+- "youtube/video/song stop/pause/bondho/thamao" → {"type":"media","action":"pause"}; never play/search a video for stop requests.
 - "youtube <q> search" → open_url https://www.youtube.com/results?search_query=<q>
+- "<file name> file open koro" → {"type":"open_file","target":"<file name>"}
+- "downloads/documents/desktop/pictures/videos/music folder kholo" → {"type":"open_folder","target":"downloads|documents|desktop|pictures|videos|music"}
+- "<file name> convert to <format>" → {"type":"convert_file","target":"<file name>","format":"<format>"}
 - "google search <q>" → search_web
 - "type X" / "paste X" → key_type
 - Pure chat → commands: [].
@@ -47,6 +54,9 @@ function extractYoutubeQuery(text: string) {
 function directYoutubeIntent(prompt: string) {
   const text = prompt.replace(/^\[[^\]]+\]\s*/g, "").trim();
   const lower = text.toLowerCase();
+  const wantsStop = /\b(stop|pause|bondho|bandho|band|tham|thamao|off)\b|বন্ধ|থাম|পজ/i.test(lower);
+  const mediaContext = /\b(youtube|yt|video|song|gaan|gan|music|audio|media)\b|ইউটিউব|ভিডিও|গান/i.test(lower);
+  if (wantsStop && mediaContext) return { reply: "hae Sir, cholte thaka video/audio stop kore dicchi.", commands: [{ type: "media", action: "pause" }] };
   const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
   const wantsPlay = /\b(play|replay|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
   if (!mentionsYoutube && !wantsPlay) return null;
