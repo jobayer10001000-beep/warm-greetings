@@ -24,6 +24,7 @@ const CommandSchema = z.object({
           "system",
           "open_url",
           "search_web",
+          "youtube_play",
         ]),
         // exec: shell command string
         command: z.string().nullable(),
@@ -43,6 +44,101 @@ const CommandSchema = z.object({
     .describe("Ordered list of commands to execute on the PC. Empty array if pure chat."),
 });
 
+type DirectCommand = {
+  type:
+    | "exec"
+    | "launch"
+    | "key_tap"
+    | "key_type"
+    | "media"
+    | "system"
+    | "open_url"
+    | "search_web"
+    | "youtube_play";
+  command: string | null;
+  target: string | null;
+  key: string | null;
+  modifiers: string[] | null;
+  text: string | null;
+  action: string | null;
+  url: string | null;
+  query: string | null;
+};
+
+type DirectIntent = { reply: string; commands: DirectCommand[] };
+
+function extractYoutubeQuery(text: string) {
+  let query = text
+    .replace(/^\[[^\]]+\]\s*/g, " ")
+    .replace(/[“”"']/g, " ")
+    .replace(/\b(hey|hi|hello)\s+(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(youtube|yt)\b|ইউটিউব/gi, " ")
+    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz)\b/gi, " ")
+    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const quoted = text.match(/["“”']([^"“”']{2,})["“”']/);
+  if (quoted?.[1]) query = quoted[1].trim();
+  return query;
+}
+
+function directYoutubeIntent(prompt: string): DirectIntent | null {
+  const text = prompt.replace(/^\[[^\]]+\]\s*/g, "").trim();
+  const lower = text.toLowerCase();
+  const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
+  const wantsPlay = /\b(play|replay|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
+  if (!mentionsYoutube && !wantsPlay) return null;
+
+  const query = extractYoutubeQuery(text);
+  if (!query) {
+    return {
+      reply: "hae Sir, YouTube khule dicchi.",
+      commands: [{
+        type: "open_url",
+        command: null,
+        target: null,
+        key: null,
+        modifiers: null,
+        text: null,
+        action: null,
+        url: "https://www.youtube.com",
+        query: null,
+      }],
+    };
+  }
+
+  return {
+    reply: wantsPlay
+      ? `hae Sir, YouTube e "${query}" play kore dicchi.`
+      : `hae Sir, YouTube e "${query}" search kore dicchi.`,
+    commands: wantsPlay
+      ? [{
+          type: "youtube_play",
+          command: null,
+          target: null,
+          key: null,
+          modifiers: null,
+          text: null,
+          action: null,
+          url: null,
+          query,
+        }]
+      : [{
+          type: "open_url",
+          command: null,
+          target: null,
+          key: null,
+          modifiers: null,
+          text: null,
+          action: null,
+          url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
+          query: null,
+        }],
+  };
+}
+
 const SYSTEM = `You are MYRAA — Rupom's personal Windows desktop AI assistant.
 
 Personality: professional friendly, Bangla+English (Banglish). Always address user as "Sir" or "Boss". Replies under 2 lines unless explaining.
@@ -60,11 +156,13 @@ Available command types (Windows-first):
 - system { action }     — lock | sleep | shutdown | screenshot.
 - open_url { url }      — opens URL in default browser.
 - search_web { query }  — google search.
+- youtube_play { query } — play the exact requested YouTube song/video; the desktop agent searches YouTube and picks the best matching real video.
 
 Rules:
 - For "open gmail", use open_url https://mail.google.com.
 - For "compose mail to X subject Y body Z", open_url https://mail.google.com/mail/?view=cm&to=X&su=Y&body=Z (URL-encode).
-- For youtube <q>, open_url https://www.youtube.com/results?search_query=<q>.
+- For "youtube e <song name> play koro" or any song/music play request, use youtube_play with query exactly equal to the song name. Do not remove letters from names. Example: "fakiraa slowed reverb song play koro" → reply mentions "fakiraa slowed reverb" and commands=[{type:"youtube_play", query:"fakiraa slowed reverb", all unused fields:null}].
+- For youtube search-only <q>, open_url https://www.youtube.com/results?search_query=<q>.
 - For search <q>, search_web with the query.
 - For "type X" or "paste X", use key_type.
 - Destructive commands (shutdown / delete / kill) — still emit them; user already confirmed in UI.
@@ -76,6 +174,9 @@ Rules:
 export const interpretCommand = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data }) => {
+    const direct = directYoutubeIntent(data.prompt);
+    if (direct) return direct;
+
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
