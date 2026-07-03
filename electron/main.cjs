@@ -632,6 +632,15 @@ function directIntent(payload) {
   const text = raw.replace(/^\[[^\]]+\]\s*/g, "").replace(/^\[WHATSAPP\]\s*/i, "").trim();
   const lower = text.toLowerCase();
 
+  // ── Help / support intent ─────────────────────────────────────────────────
+  if (/\b(help|support|sahajjo|shahajjo|contact|owner|creator|banaise|banaieche|number|kar app)\b|সাহায্য|যোগাযোগ|কে বানিয়েছে/i.test(lower) &&
+      /\b(myraa|mayra|app|tumi|tomake|tor|apnar)\b/i.test(lower)) {
+    return {
+      reply: "hae Sir, MYRAA ke Rupom Sir toiri korechen. Support/help lagle: 📞 +8801XXXXXXXXX ba email support@myraa.app — WhatsApp e message koro, direct reply pabe.",
+      commands: [],
+    };
+  }
+
   if (hasMediaStopIntent(lower) && hasMediaContext(lower)) {
     return {
       reply: "hae Sir, cholte thaka video/audio stop kore dicchi.",
