@@ -75,14 +75,18 @@
   .earth-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
   .earth-wrap{position:relative;width:min(520px,80%);aspect-ratio:1}
   .earth-glow{position:absolute;inset:0;border-radius:50%;background:rgba(34,211,238,.2);filter:blur(60px);animation:pulse 4s ease-in-out infinite}
+  /* Face kept upright — rotation shown on rings + orbiters around it (visible spin). */
   .earth-img{position:relative;width:100%;height:100%;border-radius:50%;
-    animation:earthspin 60s linear infinite;
     filter:drop-shadow(0 0 60px rgba(34,211,238,.4));user-select:none;-webkit-user-drag:none}
-  .orbit{position:absolute;inset:-40px;border-radius:50%;border:1px solid rgba(34,211,238,.15);animation:orbit 40s linear infinite}
-  .orbit.two{inset:-80px;border-color:rgba(34,211,238,.08)}
-  .ellipses{position:absolute;inset:0;pointer-events:none;animation:orbit 40s linear infinite}
-  @keyframes earthspin{to{transform:rotate(360deg)}}
-  @keyframes orbit{to{transform:rotate(360deg)}}
+  .ring{position:absolute;border-radius:50%;pointer-events:none}
+  .ring.r1{inset:-14px;border:1.5px dashed rgba(34,211,238,.55);animation:ringspin 18s linear infinite}
+  .ring.r2{inset:-42px;border:1px dashed rgba(168,85,247,.4);animation:ringspin 32s linear infinite reverse}
+  .ring.r3{inset:-78px;border:1px solid rgba(34,211,238,.15);animation:ringspin 60s linear infinite}
+  .orbiter{position:absolute;inset:-14px;border-radius:50%;pointer-events:none;animation:ringspin 12s linear infinite}
+  .orbiter::before,.orbiter::after{content:'';position:absolute;width:10px;height:10px;border-radius:50%;background:var(--primary);box-shadow:0 0 14px var(--primary);top:-5px;left:50%;transform:translateX(-50%)}
+  .orbiter::after{background:var(--accent);box-shadow:0 0 14px var(--accent);top:auto;bottom:-5px}
+  .orbiter.two{inset:-42px;animation:ringspin 22s linear infinite reverse}
+  @keyframes ringspin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
 
   /* Conversation */
@@ -217,10 +221,13 @@
   <main>
     <section class="earth-stage">
       <div class="earth-wrap">
-        <div class="orbit two"></div>
-        <div class="orbit"></div>
+        <div class="ring r3"></div>
+        <div class="ring r2"></div>
+        <div class="ring r1"></div>
         <div class="earth-glow"></div>
-        <img class="earth-img" src="earth.png" alt="Earth" draggable="false" />
+        <img class="earth-img" src="earth.png" alt="MYRAA" draggable="false" />
+        <div class="orbiter"></div>
+        <div class="orbiter two"></div>
       </div>
     </section>
 

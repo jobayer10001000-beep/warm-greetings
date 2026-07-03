@@ -9,7 +9,9 @@ const cors = {
 
 // Monika Sogam — native Bengali female voice, pure Bangla accent (no British/Indian tone).
 // Multilingual v2 model gives the most accurate Bangla pronunciation.
-const DEFAULT_VOICE = "RBnMinrYKeccY3vaUxlZ"; // Monika Sogam - Bangla native female
+// Sarah — warm multilingual female (Bangla via eleven_multilingual_v2).
+// Monika Sogam requires ElevenLabs Creator tier, so we default to a free-tier voice.
+const DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -28,12 +30,13 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           text,
           // multilingual_v2 = best Bangla accent quality (turbo slips into English intonation).
+          // NOTE: language_code param is NOT supported on multilingual_v2 — it 400s.
+          // The model auto-detects Bangla from Unicode / Banglish text.
           model_id: "eleven_multilingual_v2",
-          language_code: "bn",
           voice_settings: {
-            stability: 0.45,
-            similarity_boost: 0.9,
-            style: 0.25,
+            stability: 0.4,
+            similarity_boost: 0.85,
+            style: 0.35,
             use_speaker_boost: true,
           },
         }),
