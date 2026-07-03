@@ -8,6 +8,7 @@ const fs = require("fs");
 const { exec } = require("child_process");
 const os = require("os");
 const http = require("http");
+const wa = require("./whatsapp.cjs");
 
 // Single-instance lock so relaunches focus existing window
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
@@ -168,6 +169,20 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startPhoneBridge();
+  // Auto-start WhatsApp bridge if user previously enabled it
+  const cfg = readConfig();
+  if (cfg.waAutoStart) {
+    wa.start({
+      userDataDir: app.getPath("userData"),
+      onCommand: async ({ prompt }) => {
+        const result = await callAI({ prompt: `[WHATSAPP] ${prompt}` });
+        if (result?.error) return { error: result.error };
+        for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
+        return result;
+      },
+    }).catch((e) => console.log("[myraa-wa] autostart err", e.message));
+  }
+  wa.onChange((snap) => { try { mainWin?.webContents.send("myraa:wa:state", snap); } catch {} });
   // If launched with --hidden (auto-start on boot), hide window
   if (process.argv.includes("--hidden")) mainWin?.hide();
   app.on("activate", () => {
