@@ -301,6 +301,52 @@ function directIntent(payload) {
   const raw = typeof payload === "string" ? payload : String(payload?.prompt || "");
   const text = raw.replace(/^\[[^\]]+\]\s*/g, "").replace(/^\[WHATSAPP\]\s*/i, "").trim();
   const lower = text.toLowerCase();
+
+  // ── Discord: open + wait for UI + Ctrl+K quick-switcher + type server/user ──
+  if (/\bdiscord\b|ডিসকর্ড/i.test(lower)) {
+    // extract search target after "search", "khoj", "find", "go to", "server", etc.
+    let q = "";
+    const m = text.match(/(?:search|khoj|khojo|find|go to|open|server|channel|dm)\s+(.+)$/i);
+    if (m) q = m[1].trim();
+    q = q.replace(/\b(server|channel|dm|please|dao|daw|kore)\b/gi, "").replace(/\s+/g, " ").trim();
+    const cmds = [
+      { type: "app_search", target: "discord", match: "Discord",
+        shortcut: { key: "K", modifiers: ["LeftControl"] },
+        query: q, openDelay: 400, typeDelay: 600 },
+    ];
+    return {
+      reply: q
+        ? `hae Sir, Discord khule "${q}" search dicchi — load hote deri hole wait korbo.`
+        : "hae Sir, Discord khule dicchi.",
+      commands: q ? cmds : [{ type: "launch", target: "discord" }],
+    };
+  }
+
+  // ── Design / editing apps: open + wait ready, optional search/query ──
+  const designMap = [
+    { re: /\b(photoshop|ফটোশপ|ps)\b/i, target: "photoshop", match: "Photoshop", label: "Photoshop" },
+    { re: /\billustrator\b|\bai\b/i, target: "illustrator", match: "Illustrator", label: "Illustrator" },
+    { re: /\bpremiere( pro)?\b/i, target: "premiere", match: "Premiere", label: "Premiere Pro" },
+    { re: /\bafter ?effects?\b|\bae\b/i, target: "afterfx", match: "After Effects", label: "After Effects" },
+    { re: /\bdavinci( resolve)?\b|\bresolve\b/i, target: "resolve", match: "Resolve", label: "DaVinci Resolve" },
+    { re: /\bcapcut\b/i, target: "capcut", match: "CapCut", label: "CapCut" },
+    { re: /\bfigma\b/i, target: "figma", match: "Figma", label: "Figma" },
+    { re: /\bobs( studio)?\b/i, target: "obs64", match: "OBS", label: "OBS" },
+  ];
+  for (const d of designMap) {
+    if (d.re.test(lower)) {
+      const isEditing = /\b(edit|editing|graphic|design|thumbnail|banner|poster|video)\b/i.test(lower);
+      return {
+        reply: `hae Sir, ${d.label} khule dicchi — full load houar por janabo.`,
+        commands: [
+          { type: "launch", target: d.target },
+          { type: "wait_window", match: d.match, timeoutMs: 45000 },
+          ...(isEditing ? [] : []),
+        ],
+      };
+    }
+  }
+
   const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
   if (!mentionsYoutube) return null;
 
@@ -337,7 +383,60 @@ const APP_ALIASES_WIN = {
   cmd: "cmd.exe", powershell: "powershell.exe", terminal: "wt.exe",
   discord: "discord:", telegram: "tg://", whatsapp: "whatsapp:",
   paint: "mspaint.exe", word: "winword", excel: "excel", ppt: "powerpnt",
+  photoshop: "photoshop", ps: "photoshop",
+  illustrator: "illustrator", ai: "illustrator",
+  premiere: "premiere", "premiere pro": "premiere",
+  "after effects": "afterfx", aftereffects: "afterfx", ae: "afterfx",
+  capcut: "capcut", "davinci resolve": "resolve", davinci: "resolve", resolve: "resolve",
+  "adobe audition": "adobe audition", audition: "adobe audition",
+  obs: "obs64", "obs studio": "obs64",
+  figma: "figma", canva: "canva:",
+  steam: "steam://open/main", epic: "com.epicgames.launcher://",
 };
+
+// ─── Wait for an app window to appear (readiness tracker) ────────────────────
+// Polls the OS until a window matching `match` (substring, case-insensitive)
+// is present, then returns. Used to know when Discord/Photoshop/Premiere etc.
+// have finished loading so we can safely type search text.
+async function waitForWindow(match, timeoutMs = 30000) {
+  const needle = String(match || "").trim();
+  if (!needle) { await sleep(1500); return { ok: true, out: "waited" }; }
+  const t0 = Date.now();
+  if (plat === "win32") {
+    const script = `
+      $needle='${needle.replace(/'/g, "''")}';
+      $deadline=(Get-Date).AddMilliseconds(${timeoutMs|0});
+      while((Get-Date) -lt $deadline){
+        $p = Get-Process | Where-Object { $_.MainWindowTitle -and ($_.MainWindowTitle -match [regex]::Escape($needle) -or $_.ProcessName -match [regex]::Escape($needle)) } | Select-Object -First 1;
+        if($p){ Write-Output ("READY:" + $p.ProcessName + ":" + $p.MainWindowTitle); exit 0 }
+        Start-Sleep -Milliseconds 400
+      }
+      Write-Output 'TIMEOUT'`;
+    const r = await ps(script);
+    const took = Date.now() - t0;
+    if (r.out && r.out.startsWith("READY:")) return { ok: true, out: `ready in ${took}ms (${r.out.slice(6)})` };
+    return { ok: false, out: `window not ready after ${took}ms` };
+  }
+  // macOS/Linux: just wait a fixed slice
+  await sleep(Math.min(timeoutMs, 4000));
+  return { ok: true, out: `waited (no window probe on ${plat})` };
+}
+
+// Focus front window then send a shortcut + type query. Used for in-app search
+// (Discord Ctrl+K, Photoshop file open, Premiere media browser, etc.)
+async function appSearch({ target, match, shortcut, query, openDelay = 0, typeDelay = 400 }) {
+  const launch = await launchApp(target);
+  if (!launch.ok) return launch;
+  if (openDelay) await sleep(openDelay);
+  const ready = await waitForWindow(match || target, 40000);
+  await sleep(typeDelay);
+  if (shortcut && shortcut.key) {
+    await keyTap(shortcut.key, shortcut.modifiers || []);
+    await sleep(500);
+  }
+  if (query) await typeText(query);
+  return { ok: true, out: `${target} search "${query||""}" (${ready.out})` };
+}
 
 async function launchApp(target) {
   if (!target) return { ok: false, out: "no target" };
@@ -398,6 +497,15 @@ async function runCommand(cmd) {
       case "exec":       return sh(cmd.command);
       case "wait":       await sleep(cmd.ms || 1000); return { ok: true, out: `waited ${cmd.ms||1000}ms` };
       case "mouse_click":return mouseClick(cmd.x|0, cmd.y|0);
+      case "wait_window": return waitForWindow(cmd.match || cmd.target || "", cmd.timeoutMs || 30000);
+      case "app_search":  return appSearch({
+        target: cmd.target,
+        match: cmd.match || cmd.target,
+        shortcut: cmd.shortcut,
+        query: cmd.query || "",
+        openDelay: cmd.openDelay || 0,
+        typeDelay: cmd.typeDelay || 400,
+      });
       default:           return { ok: false, out: `unknown cmd ${cmd.type}` };
     }
   } catch (err) {
