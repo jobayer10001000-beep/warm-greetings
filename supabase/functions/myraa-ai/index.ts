@@ -202,7 +202,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
     const body = await req.json();
-    const { prompt, platform, image } = body as { prompt?: string; platform?: string; image?: string };
+    const { prompt, platform, image, language } = body as { prompt?: string; platform?: string; image?: string; language?: string };
     if (!prompt) return json({ error: "prompt required" }, 400);
 
     const direct = directYoutubeIntent(prompt);
@@ -210,6 +210,25 @@ Deno.serve(async (req: Request) => {
 
     const key = Deno.env.get("LOVABLE_API_KEY");
     if (!key) return json({ error: "LOVABLE_API_KEY missing on server" }, 500);
+
+    const lang = String(language || "BANGLA").toUpperCase();
+    const LANG_INSTRUCTIONS: Record<string, string> = {
+      BANGLA: "IMPORTANT LANGUAGE OVERRIDE: 'reply' field MUST be written in pure Bengali script (বাংলা লিপি) — no Roman/Banglish, no English words except product names. Example: 'হ্যাঁ স্যার, ইউটিউবে গানটা চালিয়ে দিচ্ছি।'",
+      ENGLISH: "LANGUAGE: 'reply' field MUST be in natural English. Address user as 'Sir'.",
+      HINDI: "LANGUAGE: 'reply' field MUST be in Hindi (देवनागरी script).",
+      URDU: "LANGUAGE: 'reply' field MUST be in Urdu (اردو script).",
+      ARABIC: "LANGUAGE: 'reply' field MUST be in Arabic (العربية).",
+      SPANISH: "LANGUAGE: 'reply' field MUST be in Spanish. Address user as 'Señor'.",
+      FRENCH: "LANGUAGE: 'reply' field MUST be in French. Address user as 'Monsieur'.",
+      GERMAN: "LANGUAGE: 'reply' field MUST be in German. Address user as 'Herr'.",
+      CHINESE: "LANGUAGE: 'reply' field MUST be in Simplified Chinese (简体中文).",
+      JAPANESE: "LANGUAGE: 'reply' field MUST be in Japanese (日本語).",
+      KOREAN: "LANGUAGE: 'reply' field MUST be in Korean (한국어).",
+      PORTUGUESE: "LANGUAGE: 'reply' field MUST be in Portuguese.",
+      RUSSIAN: "LANGUAGE: 'reply' field MUST be in Russian (Русский).",
+      INDONESIAN: "LANGUAGE: 'reply' field MUST be in Bahasa Indonesia.",
+    };
+    const langNote = LANG_INSTRUCTIONS[lang] || LANG_INSTRUCTIONS.BANGLA;
 
     const userContent: unknown = image
       ? [
@@ -224,7 +243,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: SYSTEM_PROMPT + "\n\n" + langNote },
           { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
