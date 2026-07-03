@@ -513,6 +513,21 @@
     // Manual check on load (in case boot check already fired before UI ready)
     setTimeout(() => window.myraa.update.check().then(showUpdate).catch(()=>{}), 6000);
   }
+
+  // ── First-run owner-name prompt (portable ZIP users — installer sets it via NSIS) ──
+  if (window.myraa?.owner) {
+    window.myraa.owner.get().then((name) => {
+      const asked = localStorage.getItem('myraa.ownerAsked');
+      if (!asked && (!name || name === 'Sir')) {
+        setTimeout(() => {
+          const entered = prompt("Hae! MYRAA tomake ki name a dakbe? (jemon: Rupom Sir, Boss, Ayan)\n\nKhali rekhe OK dile default 'Sir' thakbe.", "Sir");
+          const clean = (entered || 'Sir').trim() || 'Sir';
+          window.myraa.owner.set(clean).catch(() => {});
+          localStorage.setItem('myraa.ownerAsked', '1');
+        }, 800);
+      }
+    }).catch(() => {});
+  }
   } else renderWa({ status:'idle' });
 
   let currentAudio = null;

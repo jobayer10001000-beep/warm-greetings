@@ -172,9 +172,17 @@ async function start({ userDataDir, onCommand }) {
   client.on("message_create", async (msg) => {
     try {
       if (!state.ownNumber) return;
-      // Only accept messages in the "chat with self" thread
-      const selfChat = msg.fromMe && msg.to === state.ownNumber;
-      if (!selfChat) return;
+      // Accept messages in the "chat with self" thread — some WA versions
+      // report the self chat as msg.to, others as msg.from. Check both.
+      const isSelfThread =
+        (msg.to && msg.to === state.ownNumber) ||
+        (msg.from && msg.from === state.ownNumber);
+      const selfChat = msg.fromMe && isSelfThread;
+      if (!selfChat) {
+        // Uncomment for debugging: console.log("[myraa-wa] ignored msg", { fromMe: msg.fromMe, to: msg.to, from: msg.from, own: state.ownNumber });
+        return;
+      }
+      console.log("[myraa-wa] self-chat received:", { type: msg.type, body: (msg.body || "").slice(0, 60) });
 
       let text = (msg.body || "").trim();
       let viaVoice = false;
