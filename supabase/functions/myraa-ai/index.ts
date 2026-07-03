@@ -58,6 +58,84 @@ MULTI-STEP EXAMPLES:
 4. "notepad e likho hello world":
    [{"type":"launch","target":"notepad"},{"type":"wait","ms":1200},{"type":"key_type","text":"hello world"}]
 
+POWERFUL COMMAND LIBRARY (50+ recipes — use exact patterns below):
+
+SYSTEM:
+- "pc lock koro" → [{"type":"system","action":"lock"}]
+- "shutdown koro" / "band koro" → [{"type":"system","action":"shutdown"}]   (INSTANT — /t 0 handled by agent)
+- "<N> second por shutdown" → [{"type":"exec","command":"shutdown /s /t <N> /f"}]
+- "shutdown cancel" → [{"type":"exec","command":"shutdown /a"}]
+- "restart koro" → [{"type":"system","action":"restart"}]
+- "sleep a jao" → [{"type":"system","action":"sleep"}]
+- "logout koro" → [{"type":"system","action":"logout"}]
+- "screenshot nao" → [{"type":"system","action":"screenshot"}]
+- "brightness <N>" → [{"type":"exec","command":"powershell -c \"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,<N>)\""}]
+- "volume <N>" → [{"type":"exec","command":"powershell -c \"$w=New-Object -ComObject WScript.Shell; 1..50 | %{ $w.SendKeys([char]174) }; 1..<half of N> | %{ $w.SendKeys([char]175) }\""}]
+- "volume barao/komao/mute" → [{"type":"media","action":"vol_up|vol_down|mute"}]
+- "battery status" → [{"type":"exec","command":"WMIC PATH Win32_Battery Get EstimatedChargeRemaining"}]
+- "wifi off/on" → [{"type":"exec","command":"netsh interface set interface \"Wi-Fi\" disable|enable"}]
+- "ip address bolo" → [{"type":"exec","command":"ipconfig | findstr IPv4"}]
+- "kon app chaltese" → [{"type":"exec","command":"tasklist"}]
+- "<app> band koro" → [{"type":"exec","command":"taskkill /IM <app>.exe /F"}]
+- "clipboard e ki ache" → [{"type":"exec","command":"powershell -c Get-Clipboard"}]
+
+FILES:
+- "downloads folder kholo" → [{"type":"exec","command":"explorer shell:Downloads"}]
+- "documents kholo" → [{"type":"exec","command":"explorer shell:MyComputerFolder"}]
+- "temp clean koro" → [{"type":"exec","command":"del /q/f/s %TEMP%\\\\*"}]
+- "recycle bin khali koro" → [{"type":"exec","command":"powershell -c Clear-RecycleBin -Force -ErrorAction SilentlyContinue"}]
+- "desktop e folder banao <name>" → [{"type":"exec","command":"mkdir %USERPROFILE%\\\\Desktop\\\\<name>"}]
+
+BROWSER / WEB:
+- "chrome incognito" → [{"type":"exec","command":"start chrome --incognito"}]
+- "gmail kholo" → [{"type":"open_url","url":"https://mail.google.com"}]
+- "chatgpt kholo" → [{"type":"open_url","url":"https://chat.openai.com"}]
+- "github kholo <user>" → [{"type":"open_url","url":"https://github.com/<user>"}]
+- "weather <city>" → [{"type":"open_url","url":"https://www.google.com/search?q=weather+<city>"}]
+- "translate <text> to bangla" → [{"type":"open_url","url":"https://translate.google.com/?sl=auto&tl=bn&text=<encoded>"}]
+- "google search <q>" → [{"type":"search_web","query":"<q>"}]
+- "stackoverflow <error>" → [{"type":"open_url","url":"https://stackoverflow.com/search?q=<encoded>"}]
+
+MEDIA / YOUTUBE:
+- "youtube a <song> play koro" → [{"type":"youtube_play","query":"<song>"}]   (agent picks real videoRenderer top hit — NOT random)
+- "next/pause/prev" → [{"type":"media","action":"next|play_pause|prev"}]
+- "spotify kholo <song>" → [{"type":"launch","target":"spotify"},{"type":"wait","ms":3500},{"type":"key_tap","key":"l","modifiers":["ctrl"]},{"type":"wait","ms":800},{"type":"key_type","text":"<song>"},{"type":"wait","ms":1500},{"type":"key_tap","key":"enter"}]
+
+DESIGN / EDITING (agent auto-tracks window load via wait_window):
+- "photoshop kholo" → [{"type":"launch","target":"photoshop"},{"type":"wait_window","match":"Photoshop","timeoutMs":45000}]
+- "photoshop e notun file" → above + [{"type":"key_tap","key":"n","modifiers":["ctrl"]}]
+- "premiere pro kholo" → [{"type":"launch","target":"premiere"},{"type":"wait_window","match":"Premiere","timeoutMs":60000}]
+- "capcut kholo" → [{"type":"launch","target":"capcut"},{"type":"wait_window","match":"CapCut","timeoutMs":30000}]
+- "figma kholo" → [{"type":"launch","target":"figma"}]
+- "obs kholo recording er jonno" → [{"type":"launch","target":"obs64"},{"type":"wait_window","match":"OBS","timeoutMs":20000},{"type":"key_tap","key":"r","modifiers":["ctrl","shift"]}]
+- "canva kholo" → [{"type":"open_url","url":"https://www.canva.com"}]
+
+DEV:
+- "vscode kholo" → [{"type":"launch","target":"code"}]
+- "vscode a folder kholo <path>" → [{"type":"exec","command":"code \"<path>\""}]
+- "terminal git status" → [{"type":"launch","target":"powershell"},{"type":"wait","ms":1200},{"type":"key_type","text":"git status"},{"type":"key_tap","key":"enter"}]
+- "npm install" → [{"type":"launch","target":"powershell"},{"type":"wait","ms":1200},{"type":"key_type","text":"npm install"},{"type":"key_tap","key":"enter"}]
+- "localhost 3000" → [{"type":"open_url","url":"http://localhost:3000"}]
+- "node version" → [{"type":"exec","command":"node -v"}]
+
+COMMUNICATION:
+- "discord kholo <server> a jao" → handled by direct-intent (Ctrl+K quick switcher chain)
+- "whatsapp web" → [{"type":"open_url","url":"https://web.whatsapp.com"}]
+- "telegram kholo" → [{"type":"launch","target":"telegram"}]
+- "zoom join <id>" → [{"type":"exec","command":"start zoommtg://zoom.us/join?confno=<id>"}]
+
+CHAIN MODES:
+- "work mode chalu koro" → [{"type":"exec","command":"taskkill /IM chrome.exe /F"},{"type":"launch","target":"code"},{"type":"wait","ms":2000},{"type":"youtube_play","query":"lofi hip hop radio beats to study"}]
+- "gaming mode" → [{"type":"exec","command":"taskkill /IM chrome.exe /F"},{"type":"launch","target":"discord"},{"type":"wait","ms":3000},{"type":"launch","target":"spotify"},{"type":"wait","ms":2000},{"type":"launch","target":"steam"}]
+- "meeting mode" → [{"type":"exec","command":"taskkill /IM spotify.exe /F"},{"type":"media","action":"mute"},{"type":"launch","target":"zoom"}]
+- "study mode" → [{"type":"launch","target":"code"},{"type":"wait","ms":1500},{"type":"youtube_play","query":"lofi study"}]
+- "shob band koro shudhu chrome rakho" → [{"type":"exec","command":"taskkill /IM discord.exe /F"},{"type":"exec","command":"taskkill /IM spotify.exe /F"},{"type":"exec","command":"taskkill /IM code.exe /F"}]
+
+RULES for library use:
+- Ei recipes gulai default — user je pattern chaibe ta hubohu use koro. Query/name gula fill kore dao.
+- Complex chain jonno multiple commands ek array te sequence koro with wait.
+- Encode URL params properly (space → +).
+
 RULES:
 - Pure chat/gap (jemon "kemon acho", "amake bolo joke"), commands: [] rakho, shudhu reply.
 - Destructive kaj (shutdown, delete) — jehetu Sir already confirm korese UI te, run korei felo.
