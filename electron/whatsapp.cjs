@@ -3,6 +3,7 @@
 // gets routed to MYRAA's AI, executed on the PC, and replied to.
 
 const path = require("path");
+const fs = require("fs");
 const QRCode = require("qrcode");
 
 let Client, LocalAuth;
@@ -14,6 +15,25 @@ try {
 }
 
 const STT_URL = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-stt";
+
+// Find a locally-installed Chromium-based browser on Windows so puppeteer
+// doesn't need to download its own Chrome (which fails on packaged app).
+function findLocalChrome() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Google/Chrome/Application/chrome.exe"),
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Microsoft/Edge/Application/msedge.exe"),
+    "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try { if (fs.existsSync(p)) return p; } catch {}
+  }
+  return null;
+}
 
 async function transcribeVoice(base64, mimeType) {
   try {
@@ -76,6 +96,14 @@ async function start({ userDataDir, onCommand }) {
   emit();
 
   try {
+    const chromePath = findLocalChrome();
+    if (!chromePath) {
+      state.status = "error";
+      state.error = "Chrome/Edge browser paoya jayni. Google Chrome ba Microsoft Edge install koro.";
+      emit();
+      return getState();
+    }
+    console.log("[myraa-wa] using browser:", chromePath);
     client = new Client({
       authStrategy: new LocalAuth({
         clientId: "myraa",
@@ -83,6 +111,7 @@ async function start({ userDataDir, onCommand }) {
       }),
       puppeteer: {
         headless: true,
+        executablePath: chromePath,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
