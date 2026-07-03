@@ -1015,8 +1015,13 @@ ipcMain.handle("myraa:startup:set", (_e, enabled) => new Promise((resolve) => {
 
 const DEFAULT_BACKEND = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-ai";
 async function callAI(payload) {
-  const direct = directIntent(payload);
-  if (direct) return direct;
+  // Skip Bangla-hardcoded shortcuts when the user picked another language —
+  // let the LLM answer in the selected language instead.
+  const lang = String((typeof payload === "object" && payload?.language) || "BANGLA").toUpperCase();
+  if (lang === "BANGLA") {
+    const direct = directIntent(payload);
+    if (direct) return direct;
+  }
 
   const cfg = readConfig();
   const url = cfg.backendUrl && /^https?:\/\//.test(cfg.backendUrl) ? cfg.backendUrl : DEFAULT_BACKEND;
