@@ -542,6 +542,35 @@ async function convertFile(target, format) {
   if (!fmt) return { ok: false, out: "target format missing" };
   const inExt = path.extname(src).slice(1).toLowerCase();
   const out = outputPathFor(src, fmt);
+  // PDF output — use Electron's headless BrowserWindow → printToPDF
+  if (fmt === "pdf") {
+    try {
+      const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true, sandbox: true } });
+      let loadUrl;
+      if (["png","jpg","jpeg","gif","webp","bmp"].includes(inExt)) {
+        const b64 = fs.readFileSync(src).toString("base64");
+        const mime = inExt === "jpg" ? "image/jpeg" : `image/${inExt}`;
+        loadUrl = `data:text/html,<!doctype html><html><body style="margin:0;background:#fff;display:flex;align-items:center;justify-content:center"><img style="max-width:100%;max-height:100vh" src="data:${mime};base64,${b64}"/></body></html>`;
+      } else if (["txt","md","csv","log","json","js","ts","css","html","htm"].includes(inExt)) {
+        const content = fs.readFileSync(src, "utf8");
+        const body = inExt === "html" || inExt === "htm"
+          ? content
+          : `<pre style="font-family:'Segoe UI',system-ui,sans-serif;white-space:pre-wrap;padding:24px;font-size:13px;line-height:1.55">${content.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>`;
+        loadUrl = "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><meta charset="utf-8"><body style="margin:0;background:#fff;color:#111">${body}</body>`);
+      } else {
+        win.destroy();
+        return { ok: false, out: `${inExt || "file"} theke PDF convert supported na (image/text supported).` };
+      }
+      await win.loadURL(loadUrl);
+      const buf = await win.webContents.printToPDF({ printBackground: true, pageSize: "A4" });
+      fs.writeFileSync(out, buf);
+      win.destroy();
+      try { shell.showItemInFolder(out); } catch {}
+      return { ok: true, out };
+    } catch (e) {
+      return { ok: false, out: `pdf convert failed: ${e.message}` };
+    }
+  }
   const imageIn = ["jpg", "jpeg", "png", "bmp", "gif", "tiff"].includes(inExt);
   const imageOut = { jpg: "Jpeg", jpeg: "Jpeg", png: "Png", bmp: "Bmp", gif: "Gif", tiff: "Tiff" }[fmt];
   if (plat === "win32" && imageIn && imageOut) {
