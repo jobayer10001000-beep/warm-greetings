@@ -906,8 +906,9 @@ async function elevenTTS(text, voiceId) {
     }),
   });
 }
-ipcMain.handle("myraa:tts", async (_e, text) => {
-  const t = String(text || "").slice(0, 1000);
+ipcMain.handle("myraa:tts", async (_e, payload) => {
+  const t = String((typeof payload === "string" ? payload : payload?.text) || "").slice(0, 1000);
+  const lang = String((typeof payload === "object" && payload?.language) || "").toUpperCase();
   if (!t) return { error: "empty" };
   try {
     let res = await elevenTTS(t, ELEVEN_VOICE);
