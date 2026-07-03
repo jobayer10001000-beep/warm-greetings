@@ -268,17 +268,25 @@ async function openYoutubePlay(query) {
   try {
     const res = await fetch(searchUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 MYRAA Desktop Assistant",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
       },
     });
     const html = await res.text();
-    const seen = new Set();
-    const ids = [...html.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)]
-      .map((m) => m[1])
-      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)));
-    if (ids[0]) {
-      const watch = `https://www.youtube.com/watch?v=${ids[0]}&autoplay=1`;
+    // Only pick real video results (videoRenderer). Skip shorts, mixes, ads, radio.
+    // First videoRenderer in ytInitialData = top search hit.
+    let pick = null;
+    const rendererRe = /"videoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})"/g;
+    const m = rendererRe.exec(html);
+    if (m) pick = m[1];
+    if (!pick) {
+      // Fallback: first /watch?v= link
+      const w = html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
+      if (w) pick = w[1];
+    }
+    if (pick) {
+      const watch = `https://www.youtube.com/watch?v=${pick}&autoplay=1`;
       await shell.openExternal(watch);
       return { ok: true, out: `playing ${q}` };
     }

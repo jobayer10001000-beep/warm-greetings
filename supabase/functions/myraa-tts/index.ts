@@ -7,8 +7,9 @@ const cors = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// Lily — soft young female, warmer natural tone (less British than Sarah).
-const DEFAULT_VOICE = "pFZP5JQG7iQjIQuC4Bku";
+// Monika Sogam — natural Indian-subcontinent female, handles Bangla/Hindi cleanly.
+// Multilingual v2 gives the most accurate Bangla pronunciation.
+const DEFAULT_VOICE = "9BWtsMINqrJLrRacOk9x"; // Aria — warm, works well with bn via multilingual_v2
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -26,15 +27,13 @@ Deno.serve(async (req: Request) => {
         headers: { "xi-api-key": key, "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
-          // v2.5 turbo supports language_code — locks pronunciation to Bangla so it doesn't slip into British English.
-          model_id: "eleven_turbo_v2_5",
-          language_code: "bn",
+          // multilingual_v2 = best Bangla accent quality (turbo slips into English intonation).
+          model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.55,
-            similarity_boost: 0.9,
-            style: 0.15,
+            stability: 0.5,
+            similarity_boost: 0.85,
+            style: 0.35,
             use_speaker_boost: true,
-            speed: 0.95,
           },
         }),
       },
