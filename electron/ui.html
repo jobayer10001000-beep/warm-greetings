@@ -399,6 +399,41 @@
   if (window.myraa?.wa) {
     window.myraa.wa.onState(renderWa);
     window.myraa.wa.state().then(renderWa).catch(() => renderWa({ status:'error', error:'state failed' }));
+
+  // ─── Update system ────────────────────────────────────────────────────────
+  const updateBtn = document.getElementById('updateBtn');
+  const updateLabel = document.getElementById('updateLabel');
+  const updateModal = document.getElementById('updateModal');
+  const updateVer = document.getElementById('updateVer');
+  const updateNotes = document.getElementById('updateNotes');
+  const updateNow = document.getElementById('updateNow');
+  const updateLater = document.getElementById('updateLater');
+  let pendingUpdate = null;
+
+  function showUpdate(info) {
+    if (!info || !info.hasUpdate) return;
+    pendingUpdate = info;
+    updateBtn.classList.add('show');
+    updateLabel.textContent = `UPDATE v${info.latestVersion}`;
+  }
+  function openUpdateModal() {
+    if (!pendingUpdate) return;
+    updateVer.textContent = `v${pendingUpdate.currentVersion} → v${pendingUpdate.latestVersion}${pendingUpdate.released ? ' · ' + pendingUpdate.released : ''}`;
+    updateNotes.innerHTML = (pendingUpdate.notes || []).map(n => `<li>${n.replace(/</g,'&lt;')}</li>`).join('') || '<li>Bug fixes and improvements</li>';
+    updateModal.classList.add('show');
+  }
+  updateBtn.addEventListener('click', openUpdateModal);
+  updateLater.addEventListener('click', () => updateModal.classList.remove('show'));
+  updateNow.addEventListener('click', async () => {
+    const url = pendingUpdate?.downloadUrl || pendingUpdate?.portableUrl;
+    if (url && window.myraa?.update) await window.myraa.update.download(url);
+    updateModal.classList.remove('show');
+  });
+  if (window.myraa?.update) {
+    window.myraa.update.onAvailable(showUpdate);
+    // Manual check on load (in case boot check already fired before UI ready)
+    setTimeout(() => window.myraa.update.check().then(showUpdate).catch(()=>{}), 6000);
+  }
   } else renderWa({ status:'idle' });
 
   let currentAudio = null;
