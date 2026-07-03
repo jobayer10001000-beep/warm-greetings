@@ -6,10 +6,27 @@ const path = require("path");
 const QRCode = require("qrcode");
 
 let Client, LocalAuth;
+let MessageMedia;
 try {
-  ({ Client, LocalAuth } = require("whatsapp-web.js"));
+  ({ Client, LocalAuth, MessageMedia } = require("whatsapp-web.js"));
 } catch (e) {
   console.log("[myraa-wa] whatsapp-web.js not installed:", e.message);
+}
+
+const STT_URL = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-stt";
+
+async function transcribeVoice(base64, mimeType) {
+  try {
+    const res = await fetch(STT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audio: base64, mimeType: mimeType || "audio/ogg" }),
+    });
+    if (!res.ok) return { error: `STT ${res.status}` };
+    const data = await res.json();
+    if (data.error) return { error: data.error };
+    return { text: String(data.text || "").trim() };
+  } catch (e) { return { error: e.message || String(e) }; }
 }
 
 let client = null;
@@ -130,13 +147,37 @@ async function start({ userDataDir, onCommand }) {
       const selfChat = msg.fromMe && msg.to === state.ownNumber;
       if (!selfChat) return;
 
-      const text = (msg.body || "").trim();
+      let text = (msg.body || "").trim();
+      let viaVoice = false;
+
+      // Voice note → transcribe first
+      const isVoice = msg.hasMedia && (msg.type === "ptt" || msg.type === "audio");
+      if (isVoice) {
+        try {
+          const media = await msg.downloadMedia();
+          if (media?.data) {
+            state.lastMessage = { text: "🎤 transcribing voice...", at: Date.now(), dir: "in" };
+            emit();
+            const stt = await transcribeVoice(media.data, media.mimetype);
+            if (stt.error) {
+              await client.sendMessage(state.ownNumber, "🤖 ⚠️ voice bujhte parlam na: " + stt.error);
+              return;
+            }
+            text = (stt.text || "").trim();
+            viaVoice = true;
+          }
+        } catch (e) {
+          await client.sendMessage(state.ownNumber, "🤖 ⚠️ voice download fail: " + e.message);
+          return;
+        }
+      }
+
       if (!text) return;
 
       // Ignore MYRAA's own reply echoes
       if (text.startsWith("🤖")) return;
 
-      state.lastMessage = { text, at: Date.now(), dir: "in" };
+      state.lastMessage = { text: (viaVoice ? "🎤 " : "") + text, at: Date.now(), dir: "in" };
       emit();
 
       let reply = "OK Sir.";
@@ -149,7 +190,8 @@ async function start({ userDataDir, onCommand }) {
       }
 
       try {
-        await client.sendMessage(state.ownNumber, "🤖 " + reply);
+        const prefix = viaVoice ? `🤖 (🎤 "${text.slice(0, 60)}")\n` : "🤖 ";
+        await client.sendMessage(state.ownNumber, prefix + reply);
         state.lastMessage = { text: reply, at: Date.now(), dir: "out" };
         emit();
       } catch (e) {
