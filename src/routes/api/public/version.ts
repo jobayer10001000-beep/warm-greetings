@@ -6,7 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 const MANIFEST = {
   version: "1.0.7",
   released: "2026-07-03",
-  downloadUrl: "https://tdijnzdeofeylvqscjdv.supabase.co/storage/v1/object/public/releases/MYRAA-Setup-latest.exe",
+  downloadUrl: "https://tmpfiles.org/dl/wrwPjRI1Fjef/myraa-setup-1.0.7.exe",
   portableUrl: "https://tdijnzdeofeylvqscjdv.supabase.co/storage/v1/object/public/releases/MYRAA-win32-x64-latest.zip",
   notes: [
     "Local command brain — backend bhul korleo stop/open/convert age app nije bujhe ney",
