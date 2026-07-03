@@ -264,7 +264,9 @@ async function openYoutubePlay(query) {
     await shell.openExternal("https://www.youtube.com");
     return { ok: true, out: "youtube" };
   }
-  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  // sp=EgIQAQ%3D%3D restricts to Type:Video (no Shorts, Mixes, Playlists, Channels)
+  // → the first videoRenderer is the true top match, not a "People also watched" shelf.
+  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAQ%253D%253D`;
   try {
     const res = await fetch(searchUrl, {
       headers: {
@@ -274,12 +276,17 @@ async function openYoutubePlay(query) {
       },
     });
     const html = await res.text();
-    // Only pick real video results (videoRenderer). Skip shorts, mixes, ads, radio.
-    // First videoRenderer in ytInitialData = top search hit.
+    // Only pick real video results (videoRenderer). Skip shorts, mixes, ads, shelves, radio.
     let pick = null;
+    // Walk every videoRenderer and skip ones inside a shortsShelf/reelShelf/promotedVideo block.
     const rendererRe = /"videoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})"/g;
-    const m = rendererRe.exec(html);
-    if (m) pick = m[1];
+    let m;
+    while ((m = rendererRe.exec(html))) {
+      const around = html.slice(Math.max(0, m.index - 400), m.index);
+      if (/reelShelfRenderer|shortsLockupViewModel|promotedVideoRenderer|adSlotRenderer/.test(around)) continue;
+      pick = m[1];
+      break;
+    }
     if (!pick) {
       // Fallback: first /watch?v= link
       const w = html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
@@ -348,9 +355,9 @@ function directIntent(payload) {
   }
 
   const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
-  if (!mentionsYoutube) return null;
-
-  const wantsPlay = /\b(play|chalao|chala|chalaw|bajao|baja|gaan|song)\b|চাল|বাজ/i.test(lower);
+  const wantsPlay = /\b(play|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
+  // If the user asks to play a song/music (even without saying "youtube"), route to YouTube.
+  if (!mentionsYoutube && !wantsPlay) return null;
   let query = text
     .replace(/hey\s+myraa|hi\s+myraa|myraa|mayra|miraa/gi, " ")
     .replace(/youtube|yt|ইউটিউব/gi, " ")
@@ -531,15 +538,36 @@ ipcMain.handle("myraa:screenshot", async () => {
   }
 });
 
-const TTS_URL = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-tts";
+// TTS: call ElevenLabs directly from main process (bypasses edge-function deploy lag).
+// Voice: Monika Sogam — native Bengali female. Model: multilingual_v2 for best Bangla accent.
+const ELEVEN_KEY = "sk_23c2eb815f5a0bfd271800c941e82829fb1c9f4b86d82997";
+// Sarah — warm female voice, handles Bangla + English (Banglish) via multilingual_v2.
+// Monika Sogam (Bengali native) requires Creator tier — kept as premium fallback.
+const ELEVEN_VOICE = "EXAVITQu4vr4xnSDxMaL";
+const ELEVEN_FALLBACK_VOICE = "FGY2WhTYpPnrIDTdsKH5"; // Laura — soft female
+async function elevenTTS(text, voiceId) {
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+  return fetch(url, {
+    method: "POST",
+    headers: { "xi-api-key": ELEVEN_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      model_id: "eleven_multilingual_v2",
+      voice_settings: { stability: 0.4, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true },
+    }),
+  });
+}
 ipcMain.handle("myraa:tts", async (_e, text) => {
+  const t = String(text || "").slice(0, 1000);
+  if (!t) return { error: "empty" };
   try {
-    const res = await fetch(TTS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: String(text || "").slice(0, 1000) }),
-    });
-    if (!res.ok) return { error: `TTS ${res.status}` };
+    let res = await elevenTTS(t, ELEVEN_VOICE);
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      console.log("[myraa-tts] primary voice failed:", res.status, err.slice(0, 200));
+      res = await elevenTTS(t, ELEVEN_FALLBACK_VOICE);
+      if (!res.ok) return { error: `TTS ${res.status}` };
+    }
     const buf = Buffer.from(await res.arrayBuffer());
     return { ok: true, audio: "data:audio/mpeg;base64," + buf.toString("base64") };
   } catch (e) {
