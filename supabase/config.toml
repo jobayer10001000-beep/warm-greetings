@@ -6,3 +6,6 @@ verify_jwt = false
 [functions.myraa-tts]
 verify_jwt = false
 
+[functions.myraa-stt]
+verify_jwt = false
+
