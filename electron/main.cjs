@@ -1035,7 +1035,7 @@ ipcMain.handle("myraa:update:download", async (_e, url) => {
 
 // Auto-check on boot + push to renderer if update available
 app.whenReady().then(async () => {
-  await sleep(4000);
+  await sleep(1500);
   const info = await checkForUpdate();
   if (info?.hasUpdate) {
     try { mainWin?.webContents.send("myraa:update:available", info); } catch {}
