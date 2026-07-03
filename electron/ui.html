@@ -649,7 +649,7 @@
   }
   function startListen() {
     if (!recog || listening) return;
-    recog.lang = lang === 'BANGLA' ? 'bn-BD' : 'en-US';
+    recog.lang = currentLang().speech;
     try { recog.start(); listening = true; micBtn.classList.add('on'); } catch(e){ addLog('mic start: '+e.message,'err'); }
   }
   function stopListen() {
