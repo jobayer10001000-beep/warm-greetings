@@ -396,3 +396,27 @@ ipcMain.handle("myraa:setKey", (_e, url) => {
 });
 ipcMain.handle("myraa:ai", (_e, payload) => callAI(payload));
 ipcMain.handle("myraa:bridge", () => ({ url: phoneBridgeUrl(), token: getBridgeToken() }));
+
+// ─── WhatsApp bridge IPC ─────────────────────────────────────────────────────
+ipcMain.handle("myraa:wa:state", () => wa.getState());
+ipcMain.handle("myraa:wa:start", async () => {
+  const cfg = readConfig(); cfg.waAutoStart = true; writeConfig(cfg);
+  return wa.start({
+    userDataDir: app.getPath("userData"),
+    onCommand: async ({ prompt }) => {
+      const result = await callAI({ prompt: `[WHATSAPP] ${prompt}` });
+      if (result?.error) return { error: result.error };
+      for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
+      return result;
+    },
+  });
+});
+ipcMain.handle("myraa:wa:stop", async () => {
+  const cfg = readConfig(); cfg.waAutoStart = false; writeConfig(cfg);
+  return wa.stop();
+});
+ipcMain.handle("myraa:wa:logout", async () => {
+  const cfg = readConfig(); cfg.waAutoStart = false; writeConfig(cfg);
+  return wa.logout();
+});
+ipcMain.handle("myraa:wa:test", async () => wa.sendToSelf("🤖 MYRAA online — self-chat theke command dite paro."));
