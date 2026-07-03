@@ -194,6 +194,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startPhoneBridge();
+  ensureOwnerName().catch(() => {});
   // Auto-start WhatsApp bridge if user previously enabled it
   const cfg = readConfig();
   if (cfg.waAutoStart) {
