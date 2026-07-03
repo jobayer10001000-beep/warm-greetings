@@ -25,6 +25,9 @@ const CommandSchema = z.object({
           "open_url",
           "search_web",
           "youtube_play",
+          "open_file",
+          "open_folder",
+          "convert_file",
         ]),
         // exec: shell command string
         command: z.string().nullable(),
@@ -39,6 +42,8 @@ const CommandSchema = z.object({
         // open_url / search_web
         url: z.string().nullable(),
         query: z.string().nullable(),
+        // open_file/open_folder/convert_file
+        format: z.string().nullable().optional(),
       }),
     )
     .describe("Ordered list of commands to execute on the PC. Empty array if pure chat."),
@@ -54,7 +59,10 @@ type DirectCommand = {
     | "system"
     | "open_url"
     | "search_web"
-    | "youtube_play";
+    | "youtube_play"
+    | "open_file"
+    | "open_folder"
+    | "convert_file";
   command: string | null;
   target: string | null;
   key: string | null;
@@ -63,6 +71,7 @@ type DirectCommand = {
   action: string | null;
   url: string | null;
   query: string | null;
+  format?: string | null;
 };
 
 type DirectIntent = { reply: string; commands: DirectCommand[] };
@@ -157,11 +166,18 @@ Available command types (Windows-first):
 - open_url { url }      — opens URL in default browser.
 - search_web { query }  — google search.
 - youtube_play { query } — play the exact requested YouTube song/video; the desktop agent searches YouTube and picks the best matching real video.
+- open_file { target }  — open a local file by name; desktop agent searches Desktop/Downloads/Documents/Pictures/Videos/Music.
+- open_folder { target } — open known folder: downloads, desktop, documents, pictures, videos, music, home; or search folder by name.
+- convert_file { target, format } — convert local file by name to format like png/jpg/webp/txt/html/mp3/mp4 when supported.
 
 Rules:
 - For "open gmail", use open_url https://mail.google.com.
 - For "compose mail to X subject Y body Z", open_url https://mail.google.com/mail/?view=cm&to=X&su=Y&body=Z (URL-encode).
 - For "youtube e <song name> play koro" or any song/music play request, use youtube_play with query exactly equal to the song name. Do not remove letters from names. Example: "fakiraa slowed reverb song play koro" → reply mentions "fakiraa slowed reverb" and commands=[{type:"youtube_play", query:"fakiraa slowed reverb", all unused fields:null}].
+- For "youtube/video/song stop/pause/bondho/thamao", do NOT play/search anything. Use media { action:"pause" }.
+- For "<file name> file open koro" or "<song/video/photo/pdf> kholo", use open_file with target equal to the spoken file name.
+- For "downloads/documents/desktop/pictures/videos/music folder kholo", use open_folder with target equal to that folder key.
+- For "<file name> convert to <format>", use convert_file with target equal to file name and format equal to requested output extension.
 - For youtube search-only <q>, open_url https://www.youtube.com/results?search_query=<q>.
 - For search <q>, search_web with the query.
 - For "type X" or "paste X", use key_type.
