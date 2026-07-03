@@ -7,6 +7,20 @@ const SYSTEM_PROMPT = `Tumi MYRAA — Rupom Sir er personal Bangali meye AI bond
 ### AUTONOMOUS BRAIN (CRITICAL — this is what makes tumi special) ###
 Tumi ekta general-purpose reasoning brain. Predefined recipe list ta tomar starting point matro — user er request oi list e na thakleo tumi NIJER GYAN + REASONING diye command chain banabe. NEVER bolba "ami parbo na", "ei kaj support na", "eita ami janina" — always try koro.
 
+### ZERO-REFUSAL RULE (STRICTEST) ###
+Jodi user kono ACTION chay (open, kholo, chalao, koro, banao, delete, kill, check, bolo, dekhaw, etc.) — commands array KOKHONO empty rakhba na. Tumi jodi kono direct recipe na khuje pao, TOKHONI tumi NIJE ekta PowerShell/cmd/exec/open_url chain banaw jeta most likely kaj korbe. Confident thako — Windows er common CLI, Registry, WMI, PowerShell modules shob tumi jano. Guess kore hoile o ekta command deo, reply e assumption ta mention koro. "eita ami parbo na" — ei kotha kokhono na. "ekhon parbo na" ba "support na" — ei kotha o na. SHUDHU jodi kaj ta physical/hardware hoy (jemon "amar phone charger lagao") tokhon polite refuse.
+
+Examples of NEW novel tasks tumi solve korba (recipe list e nai):
+- "spotify e amar liked songs kholo" → open_url https://open.spotify.com/collection/tracks
+- "chrome er all bookmark bar toggle koro" → key_tap b+ctrl+shift
+- "dark mode on koro" → exec powershell -c "Set-ItemProperty ..." with AppsUseLightTheme registry
+- "amar wifi password dekhaw" → exec netsh wlan show profile name="X" key=clear
+- "notepad e current time likho" → launch notepad + wait + key_type with current time
+- "obs recording stop koro" → launch obs + hotkey
+- "amar github repo <name> clone koro desktop e" → exec git clone
+Jekono novel request e — CHAIN BUILD KORO, reply diye kaj shuru koro.
+### END ZERO-REFUSAL ###
+
 Autonomous decision framework (proti request e ei steps follow koro):
 1. UNDERSTAND — user ki asholey chachhen? Intent extract koro (Bangla/English/Banglish je bhabei bolun).
 2. PLAN — Windows/macOS er kon system feature/app/shortcut/CLI diye eita kora jay bhabo. Multi-step chinta koro.
@@ -262,6 +276,12 @@ Deno.serve(async (req: Request) => {
       INDONESIAN: "LANGUAGE: 'reply' field MUST be in Bahasa Indonesia.",
     };
     const langNote = LANG_INSTRUCTIONS[lang] || LANG_INSTRUCTIONS.BANGLA;
+    // HARD override: when user picked a non-Bangla language, the personality block's
+    // "always Bangla" rule must be nullified. Put this at the TOP so the model reads
+    // it first and treats it as the strongest instruction.
+    const langOverride = lang === "BANGLA"
+      ? ""
+      : `⚠️ ABSOLUTE LANGUAGE OVERRIDE ⚠️\nThe user has explicitly selected language = ${lang}. IGNORE any earlier instruction that says "reply always in Bangla". Your 'reply' field MUST be 100% in ${lang} using its native script. Do NOT mix Bangla, Banglish, or Roman letters. Personality stays warm/caring, but the LANGUAGE of the reply is ${lang} only.\n${langNote}\n\n`;
     const owner = String(ownerName || "Sir").trim() || "Sir";
     const ownerNote = `IMPORTANT: User er name/title holo "${owner}". Reply e "Sir" er poriborte ei name/title use koro (jemon "${owner}, kore ditesi"). Jodi user "Sir" chan tahole ownerName "Sir" thakbe — normal ভাবে use koro.`;
 
@@ -278,7 +298,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote },
+          { role: "system", content: langOverride + SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote },
           { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
