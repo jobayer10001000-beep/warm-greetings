@@ -1034,13 +1034,41 @@ async function callAI(payload) {
         language: payload?.language || undefined,
       };
   body.ownerName = getOwnerName();
-  try {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!res.ok) { const txt = await res.text().catch(() => ""); return { error: `Backend ${res.status}: ${txt.slice(0, 200)}` }; }
-    const out = await res.json();
-    if (out.error) return { error: out.error };
-    return { reply: out.reply || "OK Sir.", commands: Array.isArray(out.commands) ? out.commands : [] };
-  } catch (e) { return { error: (e && e.message) || String(e) }; }
+  const payloadJson = JSON.stringify(body);
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "User-Agent": "MYRAA-Desktop/1.0",
+        },
+        body: payloadJson,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) { const txt = await res.text().catch(() => ""); return { error: `Backend ${res.status}: ${txt.slice(0, 200)}` }; }
+      const out = await res.json();
+      if (out.error) return { error: out.error };
+      return { reply: out.reply || "OK Sir.", commands: Array.isArray(out.commands) ? out.commands : [] };
+    } catch (e) {
+      clearTimeout(timer);
+      lastErr = e;
+      const msg = (e && (e.message || e.cause?.message)) || String(e);
+      // Only retry on network-level failures / timeouts
+      const retriable = /fetch failed|network|ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|aborted|socket|hang up/i.test(msg);
+      if (!retriable || attempt === 3) {
+        const cause = e?.cause?.code || e?.cause?.message || "";
+        return { error: `Network error: ${msg}${cause ? ` (${cause})` : ""}. Internet connection check korun Sir.` };
+      }
+      await new Promise(r => setTimeout(r, 500 * attempt));
+    }
+  }
+  return { error: `Network error: ${(lastErr && lastErr.message) || "fetch failed"}` };
 }
 
 ipcMain.handle("myraa:hasKey", () => true);

@@ -4,11 +4,12 @@ import { createFileRoute } from "@tanstack/react-router";
 // Bump `version` here whenever you ship a new .exe / feature that needs a rebuild.
 // The Electron app polls this endpoint and shows an "Update Available" banner.
 const MANIFEST = {
-  version: "1.0.13",
+  version: "1.0.14",
   released: "2026-07-03",
   downloadUrl: "https://tmpfiles.org/dl/wrwPjRI1Fjef/myraa-setup-1.0.7.exe",
   portableUrl: "https://tdijnzdeofeylvqscjdv.supabase.co/storage/v1/object/public/releases/MYRAA-win32-x64-latest.zip",
   notes: [
+    "Network fix — 'fetch failed' error hobe na, 3x auto-retry + 30s timeout + clear error message",
     "AUTONOMOUS BRAIN — MYRAA ekhon predefined command list er baire o kaj kore. Novel task (wallpaper change, hotspot, port kill, ip check, custom folder etc.) request korle nije reasoning kore command chain banabe",
     "WhatsApp self-chat detection fix — msg.from/msg.to duitoi check kore, command miss hobe na",
     "Help/support intent — 'myraa help' / 'sahajjo lagbe' bolle contact info reply diye",
