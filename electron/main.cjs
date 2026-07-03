@@ -32,6 +32,31 @@ function writeConfig(cfg) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
 }
 
+// ─── Owner name (set at install-time via NSIS, editable at runtime) ─────────
+function readOwnerFromRegistry() {
+  return new Promise((resolve) => {
+    if (process.platform !== "win32") return resolve("");
+    exec('reg query "HKCU\\Software\\MYRAA" /v OwnerName', (err, stdout) => {
+      if (err) return resolve("");
+      const m = stdout.match(/OwnerName\s+REG_SZ\s+(.+)/i);
+      resolve(m ? m[1].trim() : "");
+    });
+  });
+}
+async function ensureOwnerName() {
+  const cfg = readConfig();
+  if (cfg.ownerName && String(cfg.ownerName).trim()) return cfg.ownerName;
+  const fromReg = await readOwnerFromRegistry();
+  const name = (fromReg || "Sir").trim();
+  cfg.ownerName = name;
+  writeConfig(cfg);
+  return name;
+}
+function getOwnerName() {
+  const cfg = readConfig();
+  return (cfg.ownerName && String(cfg.ownerName).trim()) || "Sir";
+}
+
 let mainWin = null;
 let tray = null;
 let quitting = false;
