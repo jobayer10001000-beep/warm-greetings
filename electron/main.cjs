@@ -451,6 +451,15 @@ async function runCommand(cmd) {
       case "exec":       return sh(cmd.command);
       case "wait":       await sleep(cmd.ms || 1000); return { ok: true, out: `waited ${cmd.ms||1000}ms` };
       case "mouse_click":return mouseClick(cmd.x|0, cmd.y|0);
+      case "wait_window": return waitForWindow(cmd.match || cmd.target || "", cmd.timeoutMs || 30000);
+      case "app_search":  return appSearch({
+        target: cmd.target,
+        match: cmd.match || cmd.target,
+        shortcut: cmd.shortcut,
+        query: cmd.query || "",
+        openDelay: cmd.openDelay || 0,
+        typeDelay: cmd.typeDelay || 400,
+      });
       default:           return { ok: false, out: `unknown cmd ${cmd.type}` };
     }
   } catch (err) {
