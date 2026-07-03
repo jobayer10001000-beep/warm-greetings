@@ -7,9 +7,9 @@ const cors = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// Monika Sogam — natural Indian-subcontinent female, handles Bangla/Hindi cleanly.
-// Multilingual v2 gives the most accurate Bangla pronunciation.
-const DEFAULT_VOICE = "9BWtsMINqrJLrRacOk9x"; // Aria — warm, works well with bn via multilingual_v2
+// Monika Sogam — native Bengali female voice, pure Bangla accent (no British/Indian tone).
+// Multilingual v2 model gives the most accurate Bangla pronunciation.
+const DEFAULT_VOICE = "RBnMinrYKeccY3vaUxlZ"; // Monika Sogam - Bangla native female
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -29,10 +29,11 @@ Deno.serve(async (req: Request) => {
           text,
           // multilingual_v2 = best Bangla accent quality (turbo slips into English intonation).
           model_id: "eleven_multilingual_v2",
+          language_code: "bn",
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.85,
-            style: 0.35,
+            stability: 0.45,
+            similarity_boost: 0.9,
+            style: 0.25,
             use_speaker_boost: true,
           },
         }),
