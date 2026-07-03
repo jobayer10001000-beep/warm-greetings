@@ -262,6 +262,12 @@ Deno.serve(async (req: Request) => {
       INDONESIAN: "LANGUAGE: 'reply' field MUST be in Bahasa Indonesia.",
     };
     const langNote = LANG_INSTRUCTIONS[lang] || LANG_INSTRUCTIONS.BANGLA;
+    // HARD override: when user picked a non-Bangla language, the personality block's
+    // "always Bangla" rule must be nullified. Put this at the TOP so the model reads
+    // it first and treats it as the strongest instruction.
+    const langOverride = lang === "BANGLA"
+      ? ""
+      : `⚠️ ABSOLUTE LANGUAGE OVERRIDE ⚠️\nThe user has explicitly selected language = ${lang}. IGNORE any earlier instruction that says "reply always in Bangla". Your 'reply' field MUST be 100% in ${lang} using its native script. Do NOT mix Bangla, Banglish, or Roman letters. Personality stays warm/caring, but the LANGUAGE of the reply is ${lang} only.\n${langNote}\n\n`;
     const owner = String(ownerName || "Sir").trim() || "Sir";
     const ownerNote = `IMPORTANT: User er name/title holo "${owner}". Reply e "Sir" er poriborte ei name/title use koro (jemon "${owner}, kore ditesi"). Jodi user "Sir" chan tahole ownerName "Sir" thakbe — normal ভাবে use koro.`;
 
@@ -278,7 +284,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote },
+          { role: "system", content: langOverride + SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote },
           { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
