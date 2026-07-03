@@ -363,10 +363,246 @@ function extractYoutubeQuery(text) {
   return query;
 }
 
+function hasMediaStopIntent(lower) {
+  return /\b(stop|pause|paused|bondho|bandho|band|tham|thamao|off|bondho koro|band koro|thamaw)\b|বন্ধ|থাম|পজ/i.test(lower);
+}
+
+function hasMediaContext(lower) {
+  return /\b(youtube|yt|video|song|gaan|gan|music|audio|media|player|chrome tab)\b|ইউটিউব|ভিডিও|গান|চলা/i.test(lower);
+}
+
+function stripAssistantWords(text) {
+  return String(text || "")
+    .replace(/^\[[^\]]+\]\s*/g, " ")
+    .replace(/^\[WHATSAPP\]\s*/i, " ")
+    .replace(/[“”"]/g, " ")
+    .replace(/\b(hey|hi|hello)\s+(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(myraa|mayra|miraa|sir|boss|please|plz)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstQuoted(text) {
+  const m = String(text || "").match(/["“”']([^"“”']{2,})["“”']/);
+  return m?.[1]?.trim() || "";
+}
+
+function parseFolderIntent(text) {
+  const lower = String(text || "").toLowerCase();
+  if (!/\b(open|kholo|khol|show|dekhao|folder|directory)\b|খুলো|ফোল্ডার/i.test(lower)) return null;
+  const map = [
+    { re: /\b(downloads?|download folder)\b|ডাউনলোড/i, target: "downloads", label: "Downloads" },
+    { re: /\b(desktop)\b|ডেস্কটপ/i, target: "desktop", label: "Desktop" },
+    { re: /\b(documents?|docs|my documents)\b|ডকুমেন্ট/i, target: "documents", label: "Documents" },
+    { re: /\b(pictures?|photos?|image folder)\b|ছবি|ফটো/i, target: "pictures", label: "Pictures" },
+    { re: /\b(videos?|movie folder)\b|ভিডিও/i, target: "videos", label: "Videos" },
+    { re: /\b(music|songs?|audio folder)\b|গান|মিউজিক/i, target: "music", label: "Music" },
+  ];
+  return map.find((x) => x.re.test(lower)) || null;
+}
+
+function parseOpenFileIntent(text) {
+  const raw = stripAssistantWords(text);
+  const lower = raw.toLowerCase();
+  if (/\b(youtube|yt|google|gmail|chrome|edge|firefox|spotify|discord|telegram|whatsapp|facebook|instagram|website|web site|url|link)\b/i.test(lower)) return null;
+  const hasOpenWord = /\b(open|kholo|khol|khule|show|dekhao|run|start|play|chalao|chala)\b|খুলো|চালাও|দেখাও/i.test(lower);
+  const hasFileHint = /\b(file|folder|pdf|docx?|xlsx?|pptx?|txt|mp3|mp4|mkv|mov|png|jpe?g|webp|gif|photo|image|video|song|gaan|document)\b|ফাইল|ছবি|ভিডিও|গান/i.test(lower);
+  if (!hasOpenWord || !hasFileHint) return null;
+  let target = firstQuoted(raw) || raw
+    .replace(/\b(open|kholo|khol|khule|show|dekhao|run|start|play|chalao|chala|koro|kore|dao|daw|den|ta|eta|ei|oi|the|file|folder|name|nam|er|ke|please|plz)\b/gi, " ")
+    .replace(/ফাইল|খুলো|চালাও|দেখাও|করো|নাম/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!target || target.length < 2) return null;
+  if (/^(pdf|doc|docx|txt|mp3|mp4|png|jpg|jpeg|video|song|photo|image|file|folder)$/i.test(target)) return null;
+  return target;
+}
+
+function parseConvertIntent(text) {
+  const raw = stripAssistantWords(text);
+  const lower = raw.toLowerCase();
+  if (!/\b(convert|conversion|rupantor|format|banaw|banao|make)\b|কনভার্ট|রূপান্তর/i.test(lower)) return null;
+  const formats = "pdf|jpg|jpeg|png|webp|gif|bmp|tiff|txt|md|html|csv|json|mp3|wav|m4a|mp4|mkv|mov|webm";
+  let target = "";
+  let format = "";
+  const quoted = firstQuoted(raw);
+  let m = raw.match(new RegExp(`(?:convert|conversion|rupantor|format|make|banaw|banao)\\s+(.+?)\\s+(?:to|into|as|e|te|a)\\s+(${formats})\\b`, "i"));
+  if (!m) m = raw.match(new RegExp(`(.+?)\\s+(?:to|into|as|e|te|a)\\s+(${formats})\\b.*(?:convert|conversion|rupantor|format|banaw|banao|make)`, "i"));
+  if (!m) m = raw.match(new RegExp(`(.+?)\\s+(${formats})\\s*(?:e|te|format e)?\\s*(?:convert|banaw|banao|make)`, "i"));
+  if (m) {
+    target = (quoted || m[1]).trim();
+    format = m[2].toLowerCase();
+  }
+  target = target
+    .replace(/\b(file|ta|eta|ei|oi|ke|er|please|plz|convert|conversion|rupantor|format|banaw|banao|make)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!target || !format) return null;
+  return { target, format };
+}
+
+function appPathSafe(name) {
+  try { return app.getPath(name); } catch { return null; }
+}
+
+function commonSearchRoots() {
+  const roots = ["desktop", "downloads", "documents", "pictures", "videos", "music", "home"].map(appPathSafe).filter(Boolean);
+  return [...new Set(roots)];
+}
+
+function normalizeFileText(s) {
+  return String(s || "").toLowerCase().replace(/\.[a-z0-9]{1,8}$/i, "").replace(/[^a-z0-9\u0980-\u09ff]+/gi, " ").replace(/\s+/g, " ").trim();
+}
+
+function scoreCandidatePath(fullPath, query) {
+  const base = path.basename(fullPath);
+  const b = normalizeFileText(base);
+  const q = normalizeFileText(query);
+  if (!b || !q) return 0;
+  if (base.toLowerCase() === String(query).toLowerCase()) return 1000;
+  if (b === q) return 900;
+  let score = b.includes(q) ? 500 : 0;
+  for (const token of q.split(" ").filter((w) => w.length > 1)) {
+    if (b.split(" ").includes(token)) score += 50;
+    else if (b.includes(token)) score += 15;
+  }
+  if (path.extname(query) && base.toLowerCase().endsWith(path.extname(query).toLowerCase())) score += 80;
+  return score;
+}
+
+function findBestPath(query, opts = {}) {
+  const q = String(query || "").trim().replace(/^['"]|['"]$/g, "");
+  if (!q) return null;
+  const direct = path.resolve(q.replace(/^~(?=$|[\\/])/, appPathSafe("home") || ""));
+  if (fs.existsSync(q)) return q;
+  if (fs.existsSync(direct)) return direct;
+  const wantFiles = opts.files !== false;
+  const wantFolders = opts.folders === true;
+  let best = null;
+  const deadline = Date.now() + (opts.timeoutMs || 3500);
+  const skip = new Set(["node_modules", "AppData", ".git", "$Recycle.Bin", "Windows", "Program Files", "Program Files (x86)"]);
+  function walk(dir, depth) {
+    if (Date.now() > deadline || depth < 0) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const ent of entries) {
+      if (Date.now() > deadline) return;
+      if (skip.has(ent.name)) continue;
+      const full = path.join(dir, ent.name);
+      const isDir = ent.isDirectory();
+      if ((isDir && wantFolders) || (!isDir && wantFiles)) {
+        const score = scoreCandidatePath(full, q);
+        if (score > (best?.score || 0)) best = { path: full, score };
+        if (score >= 900) return;
+      }
+      if (isDir && depth > 0) walk(full, depth - 1);
+    }
+  }
+  for (const root of commonSearchRoots()) walk(root, opts.depth ?? 4);
+  return best && best.score >= 50 ? best.path : null;
+}
+
+async function openFolder(target) {
+  const key = String(target || "").toLowerCase().trim();
+  const folder = ({ downloads: appPathSafe("downloads"), desktop: appPathSafe("desktop"), documents: appPathSafe("documents"), pictures: appPathSafe("pictures"), videos: appPathSafe("videos"), music: appPathSafe("music"), home: appPathSafe("home") })[key]
+    || findBestPath(target, { files: false, folders: true, depth: 4 });
+  if (!folder) return { ok: false, out: `folder not found: ${target}` };
+  const err = await shell.openPath(folder);
+  return { ok: !err, out: err || folder };
+}
+
+async function openFileByName(target) {
+  const found = findBestPath(target, { files: true, folders: false, depth: 5 });
+  if (!found) return { ok: false, out: `file not found: ${target}` };
+  const err = await shell.openPath(found);
+  return { ok: !err, out: err || found };
+}
+
+function psQuote(s) { return `'${String(s || "").replace(/'/g, "''")}'`; }
+function cmdQuote(s) { return `"${String(s || "").replace(/"/g, '""')}"`; }
+
+function outputPathFor(src, format) {
+  const dir = path.dirname(src);
+  const base = path.basename(src, path.extname(src));
+  let out = path.join(dir, `${base}.${format}`);
+  if (path.resolve(out).toLowerCase() === path.resolve(src).toLowerCase()) out = path.join(dir, `${base}-converted.${format}`);
+  let i = 1;
+  while (fs.existsSync(out)) out = path.join(dir, `${base}-converted-${i++}.${format}`);
+  return out;
+}
+
+async function convertFile(target, format) {
+  const src = findBestPath(target, { files: true, folders: false, depth: 5 });
+  const fmt = String(format || "").replace(/^\./, "").toLowerCase();
+  if (!src) return { ok: false, out: `file not found: ${target}` };
+  if (!fmt) return { ok: false, out: "target format missing" };
+  const inExt = path.extname(src).slice(1).toLowerCase();
+  const out = outputPathFor(src, fmt);
+  const imageIn = ["jpg", "jpeg", "png", "bmp", "gif", "tiff"].includes(inExt);
+  const imageOut = { jpg: "Jpeg", jpeg: "Jpeg", png: "Png", bmp: "Bmp", gif: "Gif", tiff: "Tiff" }[fmt];
+  if (plat === "win32" && imageIn && imageOut) {
+    const r = await ps(`Add-Type -AssemblyName System.Drawing; $src=${psQuote(src)}; $dst=${psQuote(out)}; $img=[System.Drawing.Image]::FromFile($src); try { $img.Save($dst, [System.Drawing.Imaging.ImageFormat]::${imageOut}); Write-Output $dst } finally { $img.Dispose() }`);
+    if (r.ok) { try { shell.showItemInFolder(out); } catch {} return { ok: true, out }; }
+    return r;
+  }
+  const textIn = ["txt", "md", "csv", "json", "log", "html", "css", "js", "ts"].includes(inExt);
+  const textOut = ["txt", "md", "csv", "json", "html"].includes(fmt);
+  if (textIn && textOut) {
+    const content = fs.readFileSync(src, "utf8");
+    const final = fmt === "html" && inExt !== "html"
+      ? `<!doctype html><meta charset="utf-8"><pre>${content.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>`
+      : content;
+    fs.writeFileSync(out, final);
+    try { shell.showItemInFolder(out); } catch {}
+    return { ok: true, out };
+  }
+  const mediaIn = ["mp4", "mkv", "mov", "webm", "mp3", "wav", "m4a", "aac", "flac"].includes(inExt);
+  const mediaOut = ["mp4", "mkv", "mov", "webm", "mp3", "wav", "m4a", "aac", "flac"].includes(fmt);
+  if (mediaIn && mediaOut) {
+    const has = await sh("where ffmpeg");
+    if (!has.ok) return { ok: false, out: "ffmpeg install kora nai — media convert er jonno ffmpeg lagbe" };
+    const r = await sh(`ffmpeg -y -i ${cmdQuote(src)} ${cmdQuote(out)}`);
+    if (r.ok) { try { shell.showItemInFolder(out); } catch {} return { ok: true, out }; }
+    return r;
+  }
+  return { ok: false, out: `${inExt || "file"} to ${fmt} convert supported na. Image/text/media basic formats supported.` };
+}
+
 function directIntent(payload) {
   const raw = typeof payload === "string" ? payload : String(payload?.prompt || "");
   const text = raw.replace(/^\[[^\]]+\]\s*/g, "").replace(/^\[WHATSAPP\]\s*/i, "").trim();
   const lower = text.toLowerCase();
+
+  if (hasMediaStopIntent(lower) && hasMediaContext(lower)) {
+    return {
+      reply: "hae Sir, cholte thaka video/audio stop kore dicchi.",
+      commands: [{ type: "media", action: "pause" }],
+    };
+  }
+
+  const folderIntent = parseFolderIntent(text);
+  if (folderIntent) {
+    return {
+      reply: `hae Sir, ${folderIntent.label} folder khule dicchi.`,
+      commands: [{ type: "open_folder", target: folderIntent.target }],
+    };
+  }
+
+  const convertIntent = parseConvertIntent(text);
+  if (convertIntent) {
+    return {
+      reply: `hae Sir, "${convertIntent.target}" file ta ${convertIntent.format.toUpperCase()} format e convert korchi.`,
+      commands: [{ type: "convert_file", target: convertIntent.target, format: convertIntent.format }],
+    };
+  }
+
+  const fileIntent = parseOpenFileIntent(text);
+  if (fileIntent) {
+    return {
+      reply: `hae Sir, "${fileIntent}" file ta khujar por open korchi.`,
+      commands: [{ type: "open_file", target: fileIntent }],
+    };
+  }
 
   // ── Discord: open + wait for UI + Ctrl+K quick-switcher + type server/user ──
   if (/\bdiscord\b|ডিসকর্ড/i.test(lower)) {
@@ -414,7 +650,7 @@ function directIntent(payload) {
   }
 
   const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
-  const wantsPlay = /\b(play|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
+  const wantsPlay = /\b(play|replay|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
   // If the user asks to play a song/music (even without saying "youtube"), route to YouTube.
   if (!mentionsYoutube && !wantsPlay) return null;
   let query = extractYoutubeQuery(text);
@@ -552,6 +788,9 @@ async function runCommand(cmd) {
       case "system":     return systemAction(cmd.action);
       case "media":      return mediaAction(cmd.action);
       case "youtube_play": return openYoutubePlay(cmd.query || cmd.text || cmd.command || cmd.url || "");
+      case "open_file":  return openFileByName(cmd.target || cmd.query || cmd.text || cmd.command || "");
+      case "open_folder":return openFolder(cmd.target || cmd.query || cmd.text || cmd.command || "");
+      case "convert_file": return convertFile(cmd.target || cmd.query || cmd.text || cmd.command || "", cmd.format || cmd.to || cmd.action || "");
       case "type":
       case "key_type":   return typeText(cmd.text || "");
       case "key_tap":    return keyTap(cmd.key, cmd.modifiers || []);
