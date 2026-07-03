@@ -216,8 +216,8 @@ async function systemAction(action) {
     switch (action) {
       case "lock":       return sh("rundll32.exe user32.dll,LockWorkStation");
       case "sleep":      return sh("rundll32.exe powrprof.dll,SetSuspendState 0,1,0");
-      case "shutdown":   return sh("shutdown /s /t 10");
-      case "restart":    return sh("shutdown /r /t 10");
+      case "shutdown":   return sh("shutdown /s /t 0 /f");
+      case "restart":    return sh("shutdown /r /t 0 /f");
       case "logout":     return sh("shutdown /l");
       case "cancel":     return sh("shutdown /a");
       case "screenshot": {
