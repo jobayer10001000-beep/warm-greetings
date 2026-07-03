@@ -929,28 +929,48 @@ const ELEVEN_KEY = "sk_23c2eb815f5a0bfd271800c941e82829fb1c9f4b86d82997";
 // Monika Sogam (Bengali native) requires Creator tier — kept as premium fallback.
 const ELEVEN_VOICE = "EXAVITQu4vr4xnSDxMaL";
 const ELEVEN_FALLBACK_VOICE = "FGY2WhTYpPnrIDTdsKH5"; // Laura — soft female
-async function elevenTTS(text, voiceId) {
+// Map UI language codes → ElevenLabs language_code (ISO-639-1) for flash_v2_5.
+// flash_v2_5 supports language_code and gives markedly better accent for
+// non-English languages (Hindi, Arabic, Chinese, Japanese, Korean, etc).
+const LANG_TO_ISO = {
+  BANGLA: "bn", ENGLISH: "en", HINDI: "hi", URDU: "ur", ARABIC: "ar",
+  SPANISH: "es", FRENCH: "fr", GERMAN: "de", CHINESE: "zh", JAPANESE: "ja",
+  KOREAN: "ko", PORTUGUESE: "pt", RUSSIAN: "ru", INDONESIAN: "id",
+};
+async function elevenTTS(text, voiceId, langCode) {
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+  // For non-Bangla/English use flash_v2_5 + language_code (better accent).
+  // For Bangla we stick with multilingual_v2 (auto-detects, gives natural Bangla).
+  const useFlash = langCode && !["bn", "en"].includes(langCode);
+  const body = useFlash
+    ? {
+        text,
+        model_id: "eleven_flash_v2_5",
+        language_code: langCode,
+        voice_settings: { stability: 0.45, similarity_boost: 0.85, style: 0.3, use_speaker_boost: true },
+      }
+    : {
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: { stability: 0.4, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true },
+      };
   return fetch(url, {
     method: "POST",
     headers: { "xi-api-key": ELEVEN_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      model_id: "eleven_multilingual_v2",
-      voice_settings: { stability: 0.4, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true },
-    }),
+    body: JSON.stringify(body),
   });
 }
 ipcMain.handle("myraa:tts", async (_e, payload) => {
   const t = String((typeof payload === "string" ? payload : payload?.text) || "").slice(0, 1000);
   const lang = String((typeof payload === "object" && payload?.language) || "").toUpperCase();
   if (!t) return { error: "empty" };
+  const iso = LANG_TO_ISO[lang] || "en";
   try {
-    let res = await elevenTTS(t, ELEVEN_VOICE);
+    let res = await elevenTTS(t, ELEVEN_VOICE, iso);
     if (!res.ok) {
       const err = await res.text().catch(() => "");
       console.log("[myraa-tts] primary voice failed:", res.status, err.slice(0, 200));
-      res = await elevenTTS(t, ELEVEN_FALLBACK_VOICE);
+      res = await elevenTTS(t, ELEVEN_FALLBACK_VOICE, iso);
       if (!res.ok) return { error: `TTS ${res.status}` };
     }
     const buf = Buffer.from(await res.arrayBuffer());
