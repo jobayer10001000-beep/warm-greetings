@@ -972,6 +972,7 @@ async function callAI(payload) {
         image: payload?.image || undefined,
         language: payload?.language || undefined,
       };
+  body.ownerName = getOwnerName();
   try {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!res.ok) { const txt = await res.text().catch(() => ""); return { error: `Backend ${res.status}: ${txt.slice(0, 200)}` }; }
