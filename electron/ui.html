@@ -55,6 +55,12 @@
   .chip:hover{border-color:var(--border-strong)}
   .chip.icon{width:36px;padding:0;justify-content:center}
   .chip.wa{color:#86efac;border-color:rgba(34,197,94,.35)}
+  .lang-menu{position:absolute;top:56px;right:28px;z-index:60;background:linear-gradient(160deg,rgba(15,23,42,.98),rgba(2,6,17,.98));border:1px solid rgba(94,234,212,.35);border-radius:14px;padding:8px;display:none;min-width:200px;max-height:340px;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .lang-menu.show{display:block}
+  .lang-menu button{width:100%;text-align:left;padding:10px 14px;border-radius:8px;border:none;background:transparent;color:#e2e8f0;font-family:'Rajdhani',sans-serif;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;letter-spacing:.05em}
+  .lang-menu button:hover{background:rgba(94,234,212,.12);color:var(--primary)}
+  .lang-menu button.active{background:rgba(94,234,212,.18);color:var(--primary)}
+  .lang-menu button small{color:var(--muted);font-size:11px;letter-spacing:.1em}
   .chip.update{color:#fde68a;border-color:rgba(251,191,36,.55);background:rgba(251,191,36,.08);animation:updatePulse 1.8s ease-in-out infinite;display:none}
   .chip.update.show{display:inline-flex}
   @keyframes updatePulse{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.5)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
@@ -197,6 +203,7 @@
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>
         <span id="langLabel">BANGLA</span>
       </button>
+      <div class="lang-menu" id="langMenu"></div>
       <button class="chip wa" id="waBtn" title="Connect WhatsApp">
         <span class="dot wa-idle" id="waDot"></span>
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-12.3 7.4L3 20l1.2-5.4A8.5 8.5 0 1121 11.5z"/><path d="M8.5 8.5c.4 3 3 5.5 6 6l1.2-1.2a1 1 0 011.1-.2c.9.4 1.8.6 2.7.7"/></svg>
@@ -355,15 +362,51 @@
   const waHint = $('waHint'), waQrWrap = $('waQrWrap'), waQr = $('waQr'), waLast = $('waLast');
   const waStart = $('waStart'), waStop = $('waStop'), waLogout = $('waLogout'), waTest = $('waTest');
 
+  const LANGS = [
+    { code: 'BANGLA',     name: 'বাংলা',       tag: 'BN', speech: 'bn-BD' },
+    { code: 'ENGLISH',    name: 'English',      tag: 'EN', speech: 'en-US' },
+    { code: 'HINDI',      name: 'हिन्दी',        tag: 'HI', speech: 'hi-IN' },
+    { code: 'URDU',       name: 'اردو',         tag: 'UR', speech: 'ur-PK' },
+    { code: 'ARABIC',     name: 'العربية',      tag: 'AR', speech: 'ar-SA' },
+    { code: 'SPANISH',    name: 'Español',      tag: 'ES', speech: 'es-ES' },
+    { code: 'FRENCH',     name: 'Français',     tag: 'FR', speech: 'fr-FR' },
+    { code: 'GERMAN',     name: 'Deutsch',      tag: 'DE', speech: 'de-DE' },
+    { code: 'CHINESE',    name: '中文',          tag: 'ZH', speech: 'zh-CN' },
+    { code: 'JAPANESE',   name: '日本語',        tag: 'JA', speech: 'ja-JP' },
+    { code: 'KOREAN',     name: '한국어',        tag: 'KO', speech: 'ko-KR' },
+    { code: 'PORTUGUESE', name: 'Português',    tag: 'PT', speech: 'pt-BR' },
+    { code: 'RUSSIAN',    name: 'Русский',      tag: 'RU', speech: 'ru-RU' },
+    { code: 'INDONESIAN', name: 'Indonesia',    tag: 'ID', speech: 'id-ID' },
+  ];
   let lang = localStorage.getItem('myraa.lang') || 'BANGLA';
+  if (!LANGS.find(l => l.code === lang)) lang = 'BANGLA';
   let ttsOn = localStorage.getItem('myraa.tts') !== '0';
-  langLabel.textContent = lang;
+  const langMenu = document.getElementById('langMenu');
+  function currentLang() { return LANGS.find(l => l.code === lang) || LANGS[0]; }
+  function renderLangMenu() {
+    langMenu.innerHTML = LANGS.map(l =>
+      `<button data-code="${l.code}" class="${l.code === lang ? 'active' : ''}">${l.name}<small>${l.tag}</small></button>`
+    ).join('');
+    langMenu.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        lang = b.dataset.code;
+        localStorage.setItem('myraa.lang', lang);
+        langLabel.textContent = currentLang().tag;
+        langMenu.classList.remove('show');
+        renderLangMenu();
+      });
+    });
+  }
+  langLabel.textContent = currentLang().tag;
   ttsBtn.style.color = ttsOn ? 'var(--primary)' : 'var(--muted)';
+  renderLangMenu();
 
-  langBtn.addEventListener('click', () => {
-    lang = lang === 'BANGLA' ? 'ENGLISH' : 'BANGLA';
-    localStorage.setItem('myraa.lang', lang);
-    langLabel.textContent = lang;
+  langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langMenu.classList.toggle('show');
+  });
+  document.addEventListener('click', (e) => {
+    if (!langMenu.contains(e.target) && e.target !== langBtn) langMenu.classList.remove('show');
   });
   ttsBtn.addEventListener('click', () => {
     ttsOn = !ttsOn;
@@ -479,7 +522,7 @@
       if (currentAudio) { currentAudio.pause(); currentAudio = null; }
       // Prefer ElevenLabs (native Bangla female voice) via desktop bridge
       if (window.myraa?.tts) {
-        const r = await window.myraa.tts(text);
+        const r = await window.myraa.tts(text, lang);
         if (r?.audio) {
           currentAudio = new Audio(r.audio);
           currentAudio.play().catch(() => {});
@@ -490,7 +533,7 @@
       if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'bn-BD'; u.rate = 1; u.pitch = 1;
+        u.lang = currentLang().speech; u.rate = 1; u.pitch = 1;
         speechSynthesis.speak(u);
       }
     } catch {}
@@ -566,7 +609,7 @@
           if (shot?.ok && shot.image) image = shot.image;
         } catch {}
       }
-      const res = await window.myraa.ai({ prompt: text, image });
+      const res = await window.myraa.ai({ prompt: text, image, language: lang });
       t.remove();
       if (res.error) addMsg('sys', 'error: ' + res.error);
       else {
@@ -606,7 +649,7 @@
   }
   function startListen() {
     if (!recog || listening) return;
-    recog.lang = lang === 'BANGLA' ? 'bn-BD' : 'en-US';
+    recog.lang = currentLang().speech;
     try { recog.start(); listening = true; micBtn.classList.add('on'); } catch(e){ addLog('mic start: '+e.message,'err'); }
   }
   function stopListen() {

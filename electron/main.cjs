@@ -221,8 +221,12 @@ async function systemAction(action) {
       case "logout":     return sh("shutdown /l");
       case "cancel":     return sh("shutdown /a");
       case "screenshot": {
-        const out = path.join(app.getPath("desktop"), `myraa-${Date.now()}.png`);
-        return ps(`Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bmp.Save('${out.replace(/\\/g,"\\\\")}'); Write-Output '${out.replace(/\\/g,"\\\\")}'`);
+        const dir = path.join(app.getPath("desktop"), "MYRAA");
+        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+        const out = path.join(dir, `screenshot-${new Date().toISOString().replace(/[:.]/g,"-")}.png`);
+        const r = await ps(`Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bmp.Save('${out.replace(/\\/g,"\\\\")}'); Write-Output '${out.replace(/\\/g,"\\\\")}'`);
+        if (r.ok) { try { shell.showItemInFolder(out); } catch {} return { ok: true, out }; }
+        return r;
       }
     }
   } else if (plat === "darwin") {
@@ -538,6 +542,35 @@ async function convertFile(target, format) {
   if (!fmt) return { ok: false, out: "target format missing" };
   const inExt = path.extname(src).slice(1).toLowerCase();
   const out = outputPathFor(src, fmt);
+  // PDF output — use Electron's headless BrowserWindow → printToPDF
+  if (fmt === "pdf") {
+    try {
+      const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true, sandbox: true } });
+      let loadUrl;
+      if (["png","jpg","jpeg","gif","webp","bmp"].includes(inExt)) {
+        const b64 = fs.readFileSync(src).toString("base64");
+        const mime = inExt === "jpg" ? "image/jpeg" : `image/${inExt}`;
+        loadUrl = `data:text/html,<!doctype html><html><body style="margin:0;background:#fff;display:flex;align-items:center;justify-content:center"><img style="max-width:100%;max-height:100vh" src="data:${mime};base64,${b64}"/></body></html>`;
+      } else if (["txt","md","csv","log","json","js","ts","css","html","htm"].includes(inExt)) {
+        const content = fs.readFileSync(src, "utf8");
+        const body = inExt === "html" || inExt === "htm"
+          ? content
+          : `<pre style="font-family:'Segoe UI',system-ui,sans-serif;white-space:pre-wrap;padding:24px;font-size:13px;line-height:1.55">${content.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>`;
+        loadUrl = "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><meta charset="utf-8"><body style="margin:0;background:#fff;color:#111">${body}</body>`);
+      } else {
+        win.destroy();
+        return { ok: false, out: `${inExt || "file"} theke PDF convert supported na (image/text supported).` };
+      }
+      await win.loadURL(loadUrl);
+      const buf = await win.webContents.printToPDF({ printBackground: true, pageSize: "A4" });
+      fs.writeFileSync(out, buf);
+      win.destroy();
+      try { shell.showItemInFolder(out); } catch {}
+      return { ok: true, out };
+    } catch (e) {
+      return { ok: false, out: `pdf convert failed: ${e.message}` };
+    }
+  }
   const imageIn = ["jpg", "jpeg", "png", "bmp", "gif", "tiff"].includes(inExt);
   const imageOut = { jpg: "Jpeg", jpeg: "Jpeg", png: "Png", bmp: "Bmp", gif: "Gif", tiff: "Tiff" }[fmt];
   if (plat === "win32" && imageIn && imageOut) {
@@ -578,6 +611,29 @@ function directIntent(payload) {
       reply: "hae Sir, cholte thaka video/audio stop kore dicchi.",
       commands: [{ type: "media", action: "pause" }],
     };
+  }
+
+  // Notepad new tab / new window (Windows 11 Notepad supports Ctrl+T for tab, Ctrl+N for window)
+  if (/\bnotepad\b|নোটপ্যাড/i.test(lower)) {
+    const wantsTab = /\b(new tab|tab|notun tab|arekta tab)\b|নতুন ট্যাব/i.test(lower);
+    const wantsWindow = /\b(new window|notun window|arekta window|new notepad|arekta notepad)\b|নতুন উইন্ডো/i.test(lower);
+    const wantsOpen = /\b(open|kholo|khol|khule|start|chalao|chala)\b|খুলো|চালাও/i.test(lower);
+    if (wantsTab) {
+      return {
+        reply: "hae Sir, Notepad e notun tab khule dicchi.",
+        commands: [
+          { type: "launch", target: "notepad" },
+          { type: "wait_window", match: "Notepad", timeoutMs: 8000 },
+          { type: "key_tap", key: "t", modifiers: ["LeftControl"] },
+        ],
+      };
+    }
+    if (wantsWindow || wantsOpen) {
+      return {
+        reply: "hae Sir, Notepad khule dicchi.",
+        commands: [{ type: "launch", target: "notepad" }],
+      };
+    }
   }
 
   const folderIntent = parseFolderIntent(text);
@@ -850,8 +906,9 @@ async function elevenTTS(text, voiceId) {
     }),
   });
 }
-ipcMain.handle("myraa:tts", async (_e, text) => {
-  const t = String(text || "").slice(0, 1000);
+ipcMain.handle("myraa:tts", async (_e, payload) => {
+  const t = String((typeof payload === "string" ? payload : payload?.text) || "").slice(0, 1000);
+  const lang = String((typeof payload === "object" && payload?.language) || "").toUpperCase();
   if (!t) return { error: "empty" };
   try {
     let res = await elevenTTS(t, ELEVEN_VOICE);
@@ -883,7 +940,12 @@ async function callAI(payload) {
   const url = cfg.backendUrl && /^https?:\/\//.test(cfg.backendUrl) ? cfg.backendUrl : DEFAULT_BACKEND;
   const body = typeof payload === "string"
     ? { prompt: payload, platform: plat }
-    : { prompt: String(payload?.prompt || ""), platform: plat, image: payload?.image || undefined };
+    : {
+        prompt: String(payload?.prompt || ""),
+        platform: plat,
+        image: payload?.image || undefined,
+        language: payload?.language || undefined,
+      };
   try {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!res.ok) { const txt = await res.text().catch(() => ""); return { error: `Backend ${res.status}: ${txt.slice(0, 200)}` }; }
@@ -973,7 +1035,7 @@ ipcMain.handle("myraa:update:download", async (_e, url) => {
 
 // Auto-check on boot + push to renderer if update available
 app.whenReady().then(async () => {
-  await sleep(4000);
+  await sleep(1500);
   const info = await checkForUpdate();
   if (info?.hasUpdate) {
     try { mainWin?.webContents.send("myraa:update:available", info); } catch {}

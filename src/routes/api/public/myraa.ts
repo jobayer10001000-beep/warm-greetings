@@ -85,9 +85,10 @@ export const Route = createFileRoute("/api/public/myraa")({
           "Access-Control-Allow-Headers": "Content-Type",
         };
         try {
-          const { prompt, platform } = (await request.json()) as {
+          const { prompt, platform, language } = (await request.json()) as {
             prompt?: string;
             platform?: string;
+            language?: string;
           };
           if (!prompt) {
             return new Response(JSON.stringify({ error: "prompt required" }), {
@@ -109,6 +110,25 @@ export const Route = createFileRoute("/api/public/myraa")({
             });
           }
 
+          const lang = String(language || "BANGLA").toUpperCase();
+          const LANG: Record<string, string> = {
+            BANGLA: "LANGUAGE: 'reply' MUST be pure Bengali script (বাংলা লিপি). No Banglish/Roman.",
+            ENGLISH: "LANGUAGE: 'reply' MUST be natural English.",
+            HINDI: "LANGUAGE: 'reply' MUST be Hindi (देवनागरी).",
+            URDU: "LANGUAGE: 'reply' MUST be Urdu (اردو).",
+            ARABIC: "LANGUAGE: 'reply' MUST be Arabic.",
+            SPANISH: "LANGUAGE: 'reply' MUST be Spanish.",
+            FRENCH: "LANGUAGE: 'reply' MUST be French.",
+            GERMAN: "LANGUAGE: 'reply' MUST be German.",
+            CHINESE: "LANGUAGE: 'reply' MUST be Simplified Chinese.",
+            JAPANESE: "LANGUAGE: 'reply' MUST be Japanese.",
+            KOREAN: "LANGUAGE: 'reply' MUST be Korean.",
+            PORTUGUESE: "LANGUAGE: 'reply' MUST be Portuguese.",
+            RUSSIAN: "LANGUAGE: 'reply' MUST be Russian.",
+            INDONESIAN: "LANGUAGE: 'reply' MUST be Bahasa Indonesia.",
+          };
+          const langNote = LANG[lang] || LANG.BANGLA;
+
           const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -118,7 +138,7 @@ export const Route = createFileRoute("/api/public/myraa")({
             body: JSON.stringify({
               model: "google/gemini-3-flash-preview",
               messages: [
-                { role: "system", content: SYSTEM_PROMPT },
+                { role: "system", content: SYSTEM_PROMPT + "\n\n" + langNote },
                 { role: "user", content: `Platform: ${platform || "win32"}\nUser: ${prompt}` },
               ],
               response_format: { type: "json_object" },
