@@ -23,6 +23,7 @@ Command types (JSON):
 - {"type":"system","action":"lock|sleep|shutdown|restart|logout|cancel|screenshot"}
 - {"type":"open_url","url":"https://..."}
 - {"type":"search_web","query":"..."}
+- {"type":"youtube_play","query":"..."} — exact YouTube song/video play; desktop agent picks the best matching real video.
 - {"type":"wait","ms":2000} — pause (use korbe app open korar por 1500-3000ms, page load er por 1000-2000ms)
 - {"type":"mouse_click","x":100,"y":200} — click at pixel (only if screen coords ta jano from vision)
 
@@ -52,8 +53,8 @@ MULTI-STEP EXAMPLES:
    - Prothome chrome launch, then open_url https://mail.google.com/mail/u/<account_index_or_email>/
    - Jodi specific email na jano, https://mail.google.com kholo — user setup thakle default a jabe.
 
-3. "youtube kholo lofi music":
-   [{"type":"open_url","url":"https://www.youtube.com/results?search_query=lofi+music"}]
+3. "youtube e fakiraa slowed reverb song play koro":
+   [{"type":"youtube_play","query":"fakiraa slowed reverb"}]
 
 4. "notepad e likho hello world":
    [{"type":"launch","target":"notepad"},{"type":"wait","ms":1200},{"type":"key_type","text":"hello world"}]
@@ -97,7 +98,7 @@ BROWSER / WEB:
 - "stackoverflow <error>" → [{"type":"open_url","url":"https://stackoverflow.com/search?q=<encoded>"}]
 
 MEDIA / YOUTUBE:
-- "youtube a <song> play koro" → [{"type":"youtube_play","query":"<song>"}]   (agent picks real videoRenderer top hit — NOT random)
+- "youtube a <song> play koro" → [{"type":"youtube_play","query":"<song>"}]   (query must be exact song name; never drop letters like slowed/reverb)
 - "next/pause/prev" → [{"type":"media","action":"next|play_pause|prev"}]
 - "spotify kholo <song>" → [{"type":"launch","target":"spotify"},{"type":"wait","ms":3500},{"type":"key_tap","key":"l","modifiers":["ctrl"]},{"type":"wait","ms":800},{"type":"key_type","text":"<song>"},{"type":"wait","ms":1500},{"type":"key_tap","key":"enter"}]
 
@@ -145,6 +146,43 @@ RULES:
 Format:
 {"reply":"...", "commands":[...]}`;
 
+function extractYoutubeQuery(text: string) {
+  let query = text
+    .replace(/^\[[^\]]+\]\s*/g, " ")
+    .replace(/^\[WHATSAPP\]\s*/i, " ")
+    .replace(/[“”"']/g, " ")
+    .replace(/\b(hey|hi|hello)\s+(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(youtube|yt)\b|ইউটিউব/gi, " ")
+    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz)\b/gi, " ")
+    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const quoted = text.match(/["“”']([^"“”']{2,})["“”']/);
+  if (quoted?.[1]) query = quoted[1].trim();
+  return query;
+}
+
+function directYoutubeIntent(prompt: string) {
+  const text = prompt.replace(/^\[[^\]]+\]\s*/g, "").replace(/^\[WHATSAPP\]\s*/i, "").trim();
+  const lower = text.toLowerCase();
+  const mentionsYoutube = /\b(youtube|yt)\b|ইউটিউব/i.test(lower);
+  const wantsPlay = /\b(play|replay|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
+  if (!mentionsYoutube && !wantsPlay) return null;
+
+  const query = extractYoutubeQuery(text);
+  if (!query) return { reply: "hae Sir, YouTube khule dicchi.", commands: [{ type: "open_url", url: "https://www.youtube.com" }] };
+  return {
+    reply: wantsPlay
+      ? `hae Sir, YouTube e "${query}" play kore dicchi.`
+      : `hae Sir, YouTube e "${query}" search kore dicchi.`,
+    commands: wantsPlay
+      ? [{ type: "youtube_play", query }]
+      : [{ type: "open_url", url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}` }],
+  };
+}
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -157,6 +195,9 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { prompt, platform, image } = body as { prompt?: string; platform?: string; image?: string };
     if (!prompt) return json({ error: "prompt required" }, 400);
+
+    const direct = directYoutubeIntent(prompt);
+    if (direct) return json(direct);
 
     const key = Deno.env.get("LOVABLE_API_KEY");
     if (!key) return json({ error: "LOVABLE_API_KEY missing on server" }, 500);

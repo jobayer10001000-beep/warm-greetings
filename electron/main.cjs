@@ -258,15 +258,66 @@ async function mediaAction(action) {
   return { ok: false, out: `media ${a} unsupported` };
 }
 
+function htmlDecode(s) {
+  return String(s || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function cleanWords(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreYoutubeTitle(title, query) {
+  const t = cleanWords(title);
+  const q = cleanWords(query);
+  if (!t || !q) return 0;
+  const qTokens = q.split(" ").filter((w) => w.length > 1);
+  let score = 0;
+  for (const token of qTokens) {
+    if (t.split(" ").includes(token)) score += 5;
+    else if (t.includes(token)) score += 2;
+  }
+  if (t.includes(q)) score += 20;
+  if (/\bslowed\b/.test(q) && /\bslowed\b/.test(t)) score += 8;
+  if (/\breverb\b/.test(q) && /\breverb\b/.test(t)) score += 8;
+  if (/\b(official|lyrics?|audio|music|song)\b/.test(t)) score += 2;
+  if (/\b(shorts?|cover|reaction|mix|playlist|radio)\b/.test(t)) score -= 6;
+  return score;
+}
+
+function pickYoutubeVideo(html, query) {
+  const candidates = [];
+  const rendererRe = /"videoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})"/g;
+  let m;
+  while ((m = rendererRe.exec(html))) {
+    const around = html.slice(Math.max(0, m.index - 500), Math.min(html.length, m.index + 4500));
+    if (/reelShelfRenderer|shortsLockupViewModel|promotedVideoRenderer|adSlotRenderer/.test(around)) continue;
+    const titleMatch = around.match(/"title":\{"runs":\[\{"text":"([^"]+)"/) || around.match(/"title":\{"simpleText":"([^"]+)"/);
+    const title = htmlDecode(titleMatch?.[1] || "");
+    candidates.push({ id: m[1], title, score: scoreYoutubeTitle(title, query) });
+    if (candidates.length >= 18) break;
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.id || null;
+}
+
 async function openYoutubePlay(query) {
   const q = String(query || "").trim();
   if (!q) {
     await shell.openExternal("https://www.youtube.com");
     return { ok: true, out: "youtube" };
   }
-  // sp=EgIQAQ%3D%3D restricts to Type:Video (no Shorts, Mixes, Playlists, Channels)
-  // → the first videoRenderer is the true top match, not a "People also watched" shelf.
-  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAQ%253D%253D`;
+  // Restrict to Type:Video, then score real videoRenderer titles against the exact spoken song name.
+  const params = new URLSearchParams({ search_query: q, sp: "EgIQAQ==" });
+  const searchUrl = `https://www.youtube.com/results?${params.toString()}`;
   try {
     const res = await fetch(searchUrl, {
       headers: {
@@ -276,17 +327,7 @@ async function openYoutubePlay(query) {
       },
     });
     const html = await res.text();
-    // Only pick real video results (videoRenderer). Skip shorts, mixes, ads, shelves, radio.
-    let pick = null;
-    // Walk every videoRenderer and skip ones inside a shortsShelf/reelShelf/promotedVideo block.
-    const rendererRe = /"videoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})"/g;
-    let m;
-    while ((m = rendererRe.exec(html))) {
-      const around = html.slice(Math.max(0, m.index - 400), m.index);
-      if (/reelShelfRenderer|shortsLockupViewModel|promotedVideoRenderer|adSlotRenderer/.test(around)) continue;
-      pick = m[1];
-      break;
-    }
+    let pick = pickYoutubeVideo(html, q);
     if (!pick) {
       // Fallback: first /watch?v= link
       const w = html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
@@ -295,13 +336,31 @@ async function openYoutubePlay(query) {
     if (pick) {
       const watch = `https://www.youtube.com/watch?v=${pick}&autoplay=1`;
       await shell.openExternal(watch);
-      return { ok: true, out: `playing ${q}` };
+      return { ok: true, out: `playing "${q}"` };
     }
   } catch (e) {
     console.log("[myraa] youtube play fallback:", e.message);
   }
   await shell.openExternal(searchUrl);
-  return { ok: true, out: `youtube search ${q}` };
+  return { ok: true, out: `youtube search "${q}"` };
+}
+
+function extractYoutubeQuery(text) {
+  let query = String(text || "")
+    .replace(/^\[[^\]]+\]\s*/g, " ")
+    .replace(/^\[WHATSAPP\]\s*/i, " ")
+    .replace(/[“”"']/g, " ")
+    .replace(/\b(hey|hi|hello)\s+(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(myraa|mayra|miraa)\b/gi, " ")
+    .replace(/\b(youtube|yt)\b|ইউটিউব/gi, " ")
+    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz)\b/gi, " ")
+    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const quoted = String(text || "").match(/["“”']([^"“”']{2,})["“”']/);
+  if (quoted?.[1]) query = quoted[1].trim();
+  return query;
 }
 
 function directIntent(payload) {
@@ -358,12 +417,7 @@ function directIntent(payload) {
   const wantsPlay = /\b(play|chalao|chala|chalaw|bajao|baja|gaan|song|music|gan)\b|চাল|বাজ|গান/i.test(lower);
   // If the user asks to play a song/music (even without saying "youtube"), route to YouTube.
   if (!mentionsYoutube && !wantsPlay) return null;
-  let query = text
-    .replace(/hey\s+myraa|hi\s+myraa|myraa|mayra|miraa/gi, " ")
-    .replace(/youtube|yt|ইউটিউব/gi, " ")
-    .replace(/open|khol|kholo|khule|search|sarch|khoj|khujo|play|this song|song|gaan|ta|e|a|te|kore|dao|daw|please/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  let query = extractYoutubeQuery(text);
 
   if (!query && /youtube\s+(?:e\s+)?(.+)/i.test(text)) query = RegExp.$1.trim();
   if (!query) {
@@ -374,8 +428,8 @@ function directIntent(payload) {
   }
   return {
     reply: wantsPlay
-      ? `hae Sir, YouTube e ${query} play kore dicchi.`
-      : `hae Sir, YouTube e ${query} search kore dicchi.`,
+      ? `hae Sir, YouTube e "${query}" play kore dicchi.`
+      : `hae Sir, YouTube e "${query}" search kore dicchi.`,
     commands: wantsPlay
       ? [{ type: "youtube_play", query }]
       : [{ type: "open_url", url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}` }],
