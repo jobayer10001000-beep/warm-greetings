@@ -202,7 +202,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
     const body = await req.json();
-    const { prompt, platform, image, language } = body as { prompt?: string; platform?: string; image?: string; language?: string };
+    const { prompt, platform, image, language, ownerName } = body as { prompt?: string; platform?: string; image?: string; language?: string; ownerName?: string };
     if (!prompt) return json({ error: "prompt required" }, 400);
 
     const direct = directYoutubeIntent(prompt);
@@ -229,6 +229,8 @@ Deno.serve(async (req: Request) => {
       INDONESIAN: "LANGUAGE: 'reply' field MUST be in Bahasa Indonesia.",
     };
     const langNote = LANG_INSTRUCTIONS[lang] || LANG_INSTRUCTIONS.BANGLA;
+    const owner = String(ownerName || "Sir").trim() || "Sir";
+    const ownerNote = `IMPORTANT: User er name/title holo "${owner}". Reply e "Sir" er poriborte ei name/title use koro (jemon "${owner}, kore ditesi"). Jodi user "Sir" chan tahole ownerName "Sir" thakbe — normal ভাবে use koro.`;
 
     const userContent: unknown = image
       ? [
@@ -243,7 +245,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT + "\n\n" + langNote },
+          { role: "system", content: SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote },
           { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },

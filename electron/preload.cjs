@@ -9,6 +9,14 @@ contextBridge.exposeInMainWorld("myraa", {
   screenshot: () => ipcRenderer.invoke("myraa:screenshot"),
   hasKey:     () => ipcRenderer.invoke("myraa:hasKey"),
   setKey:     (key) => ipcRenderer.invoke("myraa:setKey", key),
+  owner: {
+    get: () => ipcRenderer.invoke("myraa:owner:get"),
+    set: (name) => ipcRenderer.invoke("myraa:owner:set", name),
+  },
+  startup: {
+    get: () => ipcRenderer.invoke("myraa:startup:get"),
+    set: (enabled) => ipcRenderer.invoke("myraa:startup:set", enabled),
+  },
   update: {
     check:    () => ipcRenderer.invoke("myraa:update:check"),
     download: (url) => ipcRenderer.invoke("myraa:update:download", url),
