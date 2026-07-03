@@ -337,7 +337,60 @@ const APP_ALIASES_WIN = {
   cmd: "cmd.exe", powershell: "powershell.exe", terminal: "wt.exe",
   discord: "discord:", telegram: "tg://", whatsapp: "whatsapp:",
   paint: "mspaint.exe", word: "winword", excel: "excel", ppt: "powerpnt",
+  photoshop: "photoshop", ps: "photoshop",
+  illustrator: "illustrator", ai: "illustrator",
+  premiere: "premiere", "premiere pro": "premiere",
+  "after effects": "afterfx", aftereffects: "afterfx", ae: "afterfx",
+  capcut: "capcut", "davinci resolve": "resolve", davinci: "resolve", resolve: "resolve",
+  "adobe audition": "adobe audition", audition: "adobe audition",
+  obs: "obs64", "obs studio": "obs64",
+  figma: "figma", canva: "canva:",
+  steam: "steam://open/main", epic: "com.epicgames.launcher://",
 };
+
+// ─── Wait for an app window to appear (readiness tracker) ────────────────────
+// Polls the OS until a window matching `match` (substring, case-insensitive)
+// is present, then returns. Used to know when Discord/Photoshop/Premiere etc.
+// have finished loading so we can safely type search text.
+async function waitForWindow(match, timeoutMs = 30000) {
+  const needle = String(match || "").trim();
+  if (!needle) { await sleep(1500); return { ok: true, out: "waited" }; }
+  const t0 = Date.now();
+  if (plat === "win32") {
+    const script = `
+      $needle='${needle.replace(/'/g, "''")}';
+      $deadline=(Get-Date).AddMilliseconds(${timeoutMs|0});
+      while((Get-Date) -lt $deadline){
+        $p = Get-Process | Where-Object { $_.MainWindowTitle -and ($_.MainWindowTitle -match [regex]::Escape($needle) -or $_.ProcessName -match [regex]::Escape($needle)) } | Select-Object -First 1;
+        if($p){ Write-Output ("READY:" + $p.ProcessName + ":" + $p.MainWindowTitle); exit 0 }
+        Start-Sleep -Milliseconds 400
+      }
+      Write-Output 'TIMEOUT'`;
+    const r = await ps(script);
+    const took = Date.now() - t0;
+    if (r.out && r.out.startsWith("READY:")) return { ok: true, out: `ready in ${took}ms (${r.out.slice(6)})` };
+    return { ok: false, out: `window not ready after ${took}ms` };
+  }
+  // macOS/Linux: just wait a fixed slice
+  await sleep(Math.min(timeoutMs, 4000));
+  return { ok: true, out: `waited (no window probe on ${plat})` };
+}
+
+// Focus front window then send a shortcut + type query. Used for in-app search
+// (Discord Ctrl+K, Photoshop file open, Premiere media browser, etc.)
+async function appSearch({ target, match, shortcut, query, openDelay = 0, typeDelay = 400 }) {
+  const launch = await launchApp(target);
+  if (!launch.ok) return launch;
+  if (openDelay) await sleep(openDelay);
+  const ready = await waitForWindow(match || target, 40000);
+  await sleep(typeDelay);
+  if (shortcut && shortcut.key) {
+    await keyTap(shortcut.key, shortcut.modifiers || []);
+    await sleep(500);
+  }
+  if (query) await typeText(query);
+  return { ok: true, out: `${target} search "${query||""}" (${ready.out})` };
+}
 
 async function launchApp(target) {
   if (!target) return { ok: false, out: "no target" };
