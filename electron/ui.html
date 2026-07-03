@@ -522,7 +522,7 @@
       if (currentAudio) { currentAudio.pause(); currentAudio = null; }
       // Prefer ElevenLabs (native Bangla female voice) via desktop bridge
       if (window.myraa?.tts) {
-        const r = await window.myraa.tts(text);
+        const r = await window.myraa.tts(text, lang);
         if (r?.audio) {
           currentAudio = new Audio(r.audio);
           currentAudio.play().catch(() => {});
@@ -533,7 +533,7 @@
       if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'bn-BD'; u.rate = 1; u.pitch = 1;
+        u.lang = currentLang().speech; u.rate = 1; u.pitch = 1;
         speechSynthesis.speak(u);
       }
     } catch {}
