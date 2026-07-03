@@ -603,3 +603,69 @@ ipcMain.handle("myraa:wa:logout", async () => {
   return wa.logout();
 });
 ipcMain.handle("myraa:wa:test", async () => wa.sendToSelf("🤖 MYRAA online — self-chat theke command dite paro."));
+
+// ─── Update check ────────────────────────────────────────────────────────────
+// Poll a hosted version manifest. If server version > local, show badge.
+// User clicks "Update Now" → open download URL in browser (installer OR portable zip).
+const VERSION_URL = "https://432e53d1-8db0-4352-85e2-8995d0c88406.lovable.app/api/public/version";
+
+function cmpVer(a, b) {
+  const pa = String(a || "0").split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || "0").split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+async function checkForUpdate() {
+  try {
+    const cfg = readConfig();
+    const url = cfg.updateUrl && /^https?:\/\//.test(cfg.updateUrl) ? cfg.updateUrl : VERSION_URL;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return { ok: false, out: `check ${res.status}` };
+    const manifest = await res.json();
+    const current = app.getVersion();
+    const hasUpdate = cmpVer(manifest.version, current) > 0;
+    return {
+      ok: true,
+      hasUpdate,
+      currentVersion: current,
+      latestVersion: manifest.version,
+      released: manifest.released || null,
+      downloadUrl: manifest.downloadUrl || null,
+      portableUrl: manifest.portableUrl || null,
+      notes: Array.isArray(manifest.notes) ? manifest.notes : [],
+    };
+  } catch (e) {
+    return { ok: false, out: e.message || String(e) };
+  }
+}
+
+ipcMain.handle("myraa:update:check", () => checkForUpdate());
+ipcMain.handle("myraa:update:download", async (_e, url) => {
+  if (!url || !/^https?:\/\//.test(url)) return { ok: false, out: "bad url" };
+  await shell.openExternal(url);
+  return { ok: true, out: "opened in browser" };
+});
+
+// Auto-check on boot + push to renderer if update available
+app.whenReady().then(async () => {
+  await sleep(4000);
+  const info = await checkForUpdate();
+  if (info?.hasUpdate) {
+    try { mainWin?.webContents.send("myraa:update:available", info); } catch {}
+    try {
+      new Notification({
+        title: `MYRAA v${info.latestVersion} available`,
+        body: `Tumi ekhon v${info.currentVersion} chaltecho — update korbe?`,
+      }).show();
+    } catch {}
+  }
+  // Re-check every 6 hours
+  setInterval(async () => {
+    const i = await checkForUpdate();
+    if (i?.hasUpdate) { try { mainWin?.webContents.send("myraa:update:available", i); } catch {} }
+  }, 6 * 60 * 60 * 1000);
+});
