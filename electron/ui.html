@@ -609,7 +609,7 @@
           if (shot?.ok && shot.image) image = shot.image;
         } catch {}
       }
-      const res = await window.myraa.ai({ prompt: text, image });
+      const res = await window.myraa.ai({ prompt: text, image, language: lang });
       t.remove();
       if (res.error) addMsg('sys', 'error: ' + res.error);
       else {
