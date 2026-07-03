@@ -4,16 +4,17 @@ import { createFileRoute } from "@tanstack/react-router";
 // Bump `version` here whenever you ship a new .exe / feature that needs a rebuild.
 // The Electron app polls this endpoint and shows an "Update Available" banner.
 const MANIFEST = {
-  version: "1.0.7",
+  version: "1.0.8",
   released: "2026-07-03",
   downloadUrl: "https://tmpfiles.org/dl/wrwPjRI1Fjef/myraa-setup-1.0.7.exe",
   portableUrl: "https://tdijnzdeofeylvqscjdv.supabase.co/storage/v1/object/public/releases/MYRAA-win32-x64-latest.zip",
   notes: [
-    "Local command brain — backend bhul korleo stop/open/convert age app nije bujhe ney",
-    "YouTube stop/pause/bondho command ekhon video play kore na, running media pause kore",
-    "File name bole open korle Desktop/Downloads/Documents/Pictures/Videos/Music theke khuje open kore",
-    "Basic file convert support — image/text/media common formats",
-    "Direct single professional installer build",
+    "14+ language dropdown (Bangla, English, Hindi, Urdu, Arabic, Spanish, French, German, Chinese, Japanese, Korean, Portuguese, Russian, Indonesian) — persistent, AI + voice auto-switch",
+    "Pure Bangla script reply (বাংলা লিপি) — natural Bengali TTS, no more Banglish garble",
+    "Notepad new tab / new window intent (Ctrl+T inside Notepad)",
+    "PDF conversion — images & text files to PDF via built-in engine (no ffmpeg needed)",
+    "Screenshot save to Desktop\\MYRAA folder (auto-created)",
+    "Faster startup — update check delay 4s → 1.5s",
   ],
 };
 
