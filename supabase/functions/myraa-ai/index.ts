@@ -252,13 +252,17 @@ Deno.serve(async (req: Request) => {
     const { prompt, platform, image, language, ownerName } = body as { prompt?: string; platform?: string; image?: string; language?: string; ownerName?: string };
     if (!prompt) return json({ error: "prompt required" }, 400);
 
-    const direct = directYoutubeIntent(prompt);
-    if (direct) return json(direct);
+    const lang0 = String(language || "BANGLA").toUpperCase();
+    // Direct-intent shortcut only for Bangla (hardcoded Bangla replies).
+    if (lang0 === "BANGLA") {
+      const direct = directYoutubeIntent(prompt);
+      if (direct) return json(direct);
+    }
 
     const key = Deno.env.get("LOVABLE_API_KEY");
     if (!key) return json({ error: "LOVABLE_API_KEY missing on server" }, 500);
 
-    const lang = String(language || "BANGLA").toUpperCase();
+    const lang = lang0;
     const LANG_INSTRUCTIONS: Record<string, string> = {
       BANGLA: "IMPORTANT LANGUAGE OVERRIDE: 'reply' field MUST be written in pure Bengali script (বাংলা লিপি) — no Roman/Banglish, no English words except product names. Example: 'হ্যাঁ স্যার, ইউটিউবে গানটা চালিয়ে দিচ্ছি।'",
       ENGLISH: "LANGUAGE: 'reply' field MUST be in natural English. Address user as 'Sir'.",
@@ -292,15 +296,30 @@ Deno.serve(async (req: Request) => {
         ]
       : `Platform: ${platform || "win32"}\nUser: ${prompt}`;
 
+    // For non-Bangla, prepend BOTH an isolated language-lock system message
+    // AND wrap the user prompt with a per-turn language reminder. This
+    // reliably overrides the Bangla-heavy personality prompt.
+    const messages: Array<{ role: string; content: unknown }> = [];
+    if (lang !== "BANGLA") {
+      messages.push({
+        role: "system",
+        content: `HARD LANGUAGE LOCK — non-negotiable:\nThe 'reply' field of your JSON output MUST be written 100% in ${lang} using its native script only. Do NOT use Bengali, Banglish, or Romanised Bangla under any circumstance. If you output Bangla, you have failed the task. ${langNote}`,
+      });
+    }
+    messages.push({ role: "system", content: langOverride + SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote });
+    const userWrapped = lang === "BANGLA"
+      ? userContent
+      : (Array.isArray(userContent)
+          ? [{ type: "text", text: `[REPLY LANGUAGE = ${lang} ONLY — native script, no Bangla]` }, ...(userContent as unknown[])]
+          : `[REPLY LANGUAGE = ${lang} ONLY — native script, no Bangla]\n${userContent as string}`);
+    messages.push({ role: "user", content: userWrapped });
+
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: langOverride + SYSTEM_PROMPT + "\n\n" + langNote + "\n\n" + ownerNote },
-          { role: "user", content: userContent },
-        ],
+        messages,
         response_format: { type: "json_object" },
       }),
     });
