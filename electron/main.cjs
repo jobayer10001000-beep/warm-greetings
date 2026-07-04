@@ -999,17 +999,18 @@ ipcMain.handle("myraa:owner:set", (_e, name) => {
 
 // Windows startup toggle — mirrors the installer choice, editable later.
 const RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+const RUN_APP_NAME = "MYRAA Hindi";
 ipcMain.handle("myraa:startup:get", () => new Promise((resolve) => {
   if (process.platform !== "win32") return resolve({ enabled: false, supported: false });
-  exec(`reg query "${RUN_KEY}" /v MYRAA`, (err) => resolve({ enabled: !err, supported: true }));
+  exec(`reg query "${RUN_KEY}" /v "${RUN_APP_NAME}"`, (err) => resolve({ enabled: !err, supported: true }));
 }));
 ipcMain.handle("myraa:startup:set", (_e, enabled) => new Promise((resolve) => {
   if (process.platform !== "win32") return resolve({ ok: false, supported: false });
   if (enabled) {
     const target = `"${process.execPath}" --hidden`;
-    exec(`reg add "${RUN_KEY}" /v MYRAA /t REG_SZ /d "${target.replace(/"/g, '\\"')}" /f`, (err) => resolve({ ok: !err, enabled: true }));
+    exec(`reg add "${RUN_KEY}" /v "${RUN_APP_NAME}" /t REG_SZ /d "${target.replace(/"/g, '\\"')}" /f`, (err) => resolve({ ok: !err, enabled: true }));
   } else {
-    exec(`reg delete "${RUN_KEY}" /v MYRAA /f`, () => resolve({ ok: true, enabled: false }));
+    exec(`reg delete "${RUN_KEY}" /v "${RUN_APP_NAME}" /f`, () => resolve({ ok: true, enabled: false }));
   }
 }));
 
