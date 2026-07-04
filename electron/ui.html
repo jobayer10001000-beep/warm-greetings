@@ -201,7 +201,7 @@
     <div class="chips">
       <button class="chip" id="langBtn" title="Language">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>
-        <span id="langLabel">BANGLA</span>
+        <span id="langLabel">HINDI</span>
       </button>
       <div class="lang-menu" id="langMenu"></div>
       <button class="chip wa" id="waBtn" title="Connect WhatsApp">
@@ -234,7 +234,7 @@
     </div>
     <div class="status-cell">
       <b>VOICE PROFILE</b>
-      <span class="accent">Bangla + English</span>
+      <span class="accent">हिन्दी (Hindi)</span>
     </div>
     <div class="status-cell">
       <b>LOCAL BRIDGE</b>
@@ -363,23 +363,10 @@
   const waStart = $('waStart'), waStop = $('waStop'), waLogout = $('waLogout'), waTest = $('waTest');
 
   const LANGS = [
-    { code: 'BANGLA',     name: 'বাংলা',       tag: 'BN', speech: 'bn-BD' },
-    { code: 'ENGLISH',    name: 'English',      tag: 'EN', speech: 'en-US' },
     { code: 'HINDI',      name: 'हिन्दी',        tag: 'HI', speech: 'hi-IN' },
-    { code: 'URDU',       name: 'اردو',         tag: 'UR', speech: 'ur-PK' },
-    { code: 'ARABIC',     name: 'العربية',      tag: 'AR', speech: 'ar-SA' },
-    { code: 'SPANISH',    name: 'Español',      tag: 'ES', speech: 'es-ES' },
-    { code: 'FRENCH',     name: 'Français',     tag: 'FR', speech: 'fr-FR' },
-    { code: 'GERMAN',     name: 'Deutsch',      tag: 'DE', speech: 'de-DE' },
-    { code: 'CHINESE',    name: '中文',          tag: 'ZH', speech: 'zh-CN' },
-    { code: 'JAPANESE',   name: '日本語',        tag: 'JA', speech: 'ja-JP' },
-    { code: 'KOREAN',     name: '한국어',        tag: 'KO', speech: 'ko-KR' },
-    { code: 'PORTUGUESE', name: 'Português',    tag: 'PT', speech: 'pt-BR' },
-    { code: 'RUSSIAN',    name: 'Русский',      tag: 'RU', speech: 'ru-RU' },
-    { code: 'INDONESIAN', name: 'Indonesia',    tag: 'ID', speech: 'id-ID' },
   ];
-  let lang = localStorage.getItem('myraa.lang') || 'BANGLA';
-  if (!LANGS.find(l => l.code === lang)) lang = 'BANGLA';
+  let lang = 'HINDI';
+  localStorage.setItem('myraa.lang', 'HINDI');
   let ttsOn = localStorage.getItem('myraa.tts') !== '0';
   const langMenu = document.getElementById('langMenu');
   function currentLang() { return LANGS.find(l => l.code === lang) || LANGS[0]; }
