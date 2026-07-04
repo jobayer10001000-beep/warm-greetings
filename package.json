@@ -17,10 +17,10 @@
     "dist:portable": "electron-builder --win portable --publish never"
   },
   "build": {
-    "appId": "com.myraa.desktop",
-    "productName": "MYRAA",
+    "appId": "com.myraa.hindi.desktop",
+    "productName": "MYRAA Hindi",
     "copyright": "Copyright © 2026 MYRAA",
-    "artifactName": "MYRAA-Setup-${version}.${ext}",
+    "artifactName": "MYRAA-Hindi-Setup-${version}.${ext}",
     "directories": {
       "output": "/tmp/dist-installer",
       "buildResources": "electron"
@@ -60,8 +60,8 @@
       "uninstallerIcon": "electron/icon.ico",
       "installerHeaderIcon": "electron/icon.ico",
       "include": "electron/installer.nsh",
-      "artifactName": "MYRAA-Setup-${version}.${ext}",
-      "uninstallDisplayName": "MYRAA — Neural Desktop Companion"
+      "artifactName": "MYRAA-Hindi-Setup-${version}.${ext}",
+      "uninstallDisplayName": "MYRAA Hindi — Neural Desktop Companion"
     },
     "compression": "maximum"
   },
@@ -147,7 +147,7 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16"
   },
-  "version": "1.0.14",
+  "version": "1.1.0",
   "author": "MYRAA",
-  "description": "MYRAA Neural Desktop Companion"
+  "description": "MYRAA Hindi Neural Desktop Companion"
 }
