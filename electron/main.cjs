@@ -1025,7 +1025,7 @@ async function callAI(payload) {
   const cfg = readConfig();
   const url = cfg.backendUrl && /^https?:\/\//.test(cfg.backendUrl) ? cfg.backendUrl : DEFAULT_BACKEND;
   const body = typeof payload === "string"
-    ? { prompt: payload, platform: plat }
+    ? { prompt: payload, platform: plat, language: "HINDI" }
     : {
         prompt: String(payload?.prompt || ""),
         platform: plat,

@@ -96,12 +96,6 @@ export const Route = createFileRoute("/api/public/myraa")({
               headers: { "Content-Type": "application/json", ...cors },
             });
           }
-          const direct = directYoutubeIntent(prompt);
-          if (direct) {
-            return new Response(JSON.stringify(direct), {
-              headers: { "Content-Type": "application/json", ...cors },
-            });
-          }
           const key = process.env.LOVABLE_API_KEY;
           if (!key) {
             return new Response(JSON.stringify({ error: "server key missing" }), {
@@ -111,6 +105,12 @@ export const Route = createFileRoute("/api/public/myraa")({
           }
 
           const lang = String(language || "BANGLA").toUpperCase();
+          const direct = lang === "BANGLA" ? directYoutubeIntent(prompt) : null;
+          if (direct) {
+            return new Response(JSON.stringify(direct), {
+              headers: { "Content-Type": "application/json", ...cors },
+            });
+          }
           const LANG: Record<string, string> = {
             BANGLA: "LANGUAGE: 'reply' MUST be pure Bengali script (বাংলা লিপি). No Banglish/Roman.",
             ENGLISH: "LANGUAGE: 'reply' MUST be natural English.",
