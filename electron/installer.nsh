@@ -2,6 +2,7 @@
 ; Runs after the standard electron-builder NSIS logic finishes.
 
 ; nsDialogs — used for the owner-name prompt.
+!include "MUI2.nsh"
 !include "nsDialogs.nsh"
 !include "LogicLib.nsh"
 
