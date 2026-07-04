@@ -179,7 +179,7 @@ function startPhoneBridge() {
     if (url.pathname === "/ai" && req.method === "POST") {
       try {
         const { prompt } = JSON.parse(await readBody());
-        const result = await callAI({ prompt });
+        const result = await callAI({ prompt, language: "HINDI" });
         // auto-run commands returned by AI
         for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
         return send(200, result);
@@ -201,7 +201,7 @@ app.whenReady().then(() => {
     wa.start({
       userDataDir: app.getPath("userData"),
       onCommand: async ({ prompt }) => {
-        const result = await callAI({ prompt: `[WHATSAPP] ${prompt}` });
+        const result = await callAI({ prompt: `[WHATSAPP] ${prompt}`, language: "HINDI" });
         if (result?.error) return { error: result.error };
         for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
         return result;
@@ -383,8 +383,8 @@ function extractYoutubeQuery(text) {
     .replace(/\b(hey|hi|hello)\s+(myraa|mayra|miraa)\b/gi, " ")
     .replace(/\b(myraa|mayra|miraa)\b/gi, " ")
     .replace(/\b(youtube|yt)\b|ইউটিউব/gi, " ")
-    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz)\b/gi, " ")
-    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in)\b/gi, " ")
+    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz|karo|kare|kar|chalao|chalaana|bajao|bajana)\b/gi, " ")
+    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in|ko|par|mein|me|se|ke|ka|ki)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -999,25 +999,25 @@ ipcMain.handle("myraa:owner:set", (_e, name) => {
 
 // Windows startup toggle — mirrors the installer choice, editable later.
 const RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+const RUN_APP_NAME = "MYRAA Hindi";
 ipcMain.handle("myraa:startup:get", () => new Promise((resolve) => {
   if (process.platform !== "win32") return resolve({ enabled: false, supported: false });
-  exec(`reg query "${RUN_KEY}" /v MYRAA`, (err) => resolve({ enabled: !err, supported: true }));
+  exec(`reg query "${RUN_KEY}" /v "${RUN_APP_NAME}"`, (err) => resolve({ enabled: !err, supported: true }));
 }));
 ipcMain.handle("myraa:startup:set", (_e, enabled) => new Promise((resolve) => {
   if (process.platform !== "win32") return resolve({ ok: false, supported: false });
   if (enabled) {
     const target = `"${process.execPath}" --hidden`;
-    exec(`reg add "${RUN_KEY}" /v MYRAA /t REG_SZ /d "${target.replace(/"/g, '\\"')}" /f`, (err) => resolve({ ok: !err, enabled: true }));
+    exec(`reg add "${RUN_KEY}" /v "${RUN_APP_NAME}" /t REG_SZ /d "${target.replace(/"/g, '\\"')}" /f`, (err) => resolve({ ok: !err, enabled: true }));
   } else {
-    exec(`reg delete "${RUN_KEY}" /v MYRAA /f`, () => resolve({ ok: true, enabled: false }));
+    exec(`reg delete "${RUN_KEY}" /v "${RUN_APP_NAME}" /f`, () => resolve({ ok: true, enabled: false }));
   }
 }));
 
-const DEFAULT_BACKEND = "https://tdijnzdeofeylvqscjdv.supabase.co/functions/v1/myraa-ai";
+const DEFAULT_BACKEND = "https://project--432e53d1-8db0-4352-85e2-8995d0c88406-dev.lovable.app/api/public/myraa";
 async function callAI(payload) {
-  // Skip Bangla-hardcoded shortcuts when the user picked another language —
-  // let the LLM answer in the selected language instead.
-  const lang = String((typeof payload === "object" && payload?.language) || "BANGLA").toUpperCase();
+  // Hindi edition: force Hindi unless a future build explicitly changes it.
+  const lang = String((typeof payload === "object" && payload?.language) || "HINDI").toUpperCase();
   if (lang === "BANGLA") {
     const direct = directIntent(payload);
     if (direct) return direct;
@@ -1026,12 +1026,12 @@ async function callAI(payload) {
   const cfg = readConfig();
   const url = cfg.backendUrl && /^https?:\/\//.test(cfg.backendUrl) ? cfg.backendUrl : DEFAULT_BACKEND;
   const body = typeof payload === "string"
-    ? { prompt: payload, platform: plat }
+    ? { prompt: payload, platform: plat, language: "HINDI" }
     : {
         prompt: String(payload?.prompt || ""),
         platform: plat,
         image: payload?.image || undefined,
-        language: payload?.language || undefined,
+        language: payload?.language || "HINDI",
       };
   body.ownerName = getOwnerName();
   const payloadJson = JSON.stringify(body);
@@ -1063,7 +1063,7 @@ async function callAI(payload) {
       const retriable = /fetch failed|network|ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|aborted|socket|hang up/i.test(msg);
       if (!retriable || attempt === 3) {
         const cause = e?.cause?.code || e?.cause?.message || "";
-        return { error: `Network error: ${msg}${cause ? ` (${cause})` : ""}. Internet connection check korun Sir.` };
+        return { error: `Network error: ${msg}${cause ? ` (${cause})` : ""}. Internet connection check करें Sir.` };
       }
       await new Promise(r => setTimeout(r, 500 * attempt));
     }
@@ -1086,7 +1086,7 @@ ipcMain.handle("myraa:wa:start", async () => {
   return wa.start({
     userDataDir: app.getPath("userData"),
     onCommand: async ({ prompt }) => {
-      const result = await callAI({ prompt: `[WHATSAPP] ${prompt}` });
+      const result = await callAI({ prompt: `[WHATSAPP] ${prompt}`, language: "HINDI" });
       if (result?.error) return { error: result.error };
       for (const c of (result.commands || [])) { try { await runCommand(c); } catch {} }
       return result;

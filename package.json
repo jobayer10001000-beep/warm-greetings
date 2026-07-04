@@ -52,8 +52,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "MYRAA",
-      "menuCategory": "MYRAA",
+      "shortcutName": "MYRAA Hindi",
+      "menuCategory": "MYRAA Hindi",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "installerIcon": "electron/icon.ico",
@@ -147,7 +147,7 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16"
   },
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "MYRAA",
   "description": "MYRAA Hindi Neural Desktop Companion"
 }
