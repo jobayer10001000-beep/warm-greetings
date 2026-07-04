@@ -383,8 +383,8 @@ function extractYoutubeQuery(text) {
     .replace(/\b(hey|hi|hello)\s+(myraa|mayra|miraa)\b/gi, " ")
     .replace(/\b(myraa|mayra|miraa)\b/gi, " ")
     .replace(/\b(youtube|yt)\b|ইউটিউব/gi, " ")
-    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz)\b/gi, " ")
-    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in)\b/gi, " ")
+    .replace(/\b(open|khol|kholo|khule|search|sarch|khoj|khujo|find|play|replay|this|video|song|gaan|gan|music|chalao|chala|chalaw|bajao|baja|kor|koro|kore|dao|daw|den|please|plz|karo|kare|kar|chalao|chalaana|bajao|bajana)\b/gi, " ")
+    .replace(/\b(e|a|te|ta|er|theke|to|for|on|in|ko|par|mein|me|se|ke|ka|ki)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
